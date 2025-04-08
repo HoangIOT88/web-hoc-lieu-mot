@@ -244,4 +244,36 @@ class LectureController extends Controller
         return redirect()->route('lectures.index', $course)
             ->with('success', 'Bài giảng đã được xóa thành công.');
     }
+    
+    /**
+     * Display a listing of all lectures.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function indexAll()
+    {
+        // Check user role
+        $user = Auth::user();
+        
+        if ($user->isAdmin()) {
+            // Admin sees all lectures
+            $lectures = Lecture::with('course')->latest('uploaded_at')->paginate(10);
+        } elseif ($user->isContentUser()) {
+            // Content user sees lectures of courses they manage
+            $courseIds = $user->managedCourses()->pluck('id');
+            $lectures = Lecture::whereIn('course_id', $courseIds)
+                ->with('course')
+                ->latest('uploaded_at')
+                ->paginate(10);
+        } else {
+            // Regular user sees lectures of courses they're registered for
+            $courseIds = $user->registeredCourses()->pluck('courses.id');
+            $lectures = Lecture::whereIn('course_id', $courseIds)
+                ->with('course')
+                ->latest('uploaded_at')
+                ->paginate(10);
+        }
+        
+        return view('lectures.all', compact('lectures'));
+    }
 }

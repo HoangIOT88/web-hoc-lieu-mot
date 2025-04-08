@@ -41,6 +41,29 @@ class ExerciseController extends Controller
     }
     
     /**
+     * Display all exercises across all courses.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function indexAll()
+    {
+        // Determine visibility based on user role
+        if (Auth::user()->isAdmin() || Auth::user()->isContentUser()) {
+            // Admins and content users can see all exercises
+            $exercises = Exercise::with('course')->latest()->paginate(10);
+        } else {
+            // Regular users can only see exercises from courses they're registered for
+            $userCourseIds = Auth::user()->registeredCourses()->pluck('courses.id');
+            $exercises = Exercise::whereIn('course_id', $userCourseIds)
+                ->with('course')
+                ->latest()
+                ->paginate(10);
+        }
+        
+        return view('exercises.all', compact('exercises'));
+    }
+    
+    /**
      * Show the exercise details and submission form.
      *
      * @param  \App\Models\Exercise  $exercise

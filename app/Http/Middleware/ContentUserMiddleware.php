@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 
 class ContentUserMiddleware
 {
@@ -16,10 +17,10 @@ class ContentUserMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (Auth::check() && (Auth::user()->role === 'CONTENT_USER' || Auth::user()->role === 'ADMIN')) {
+        if (Auth::check() && (Auth::user()->isContentUser() || Auth::user()->isAdmin())) {
             return $next($request);
         }
         
-        return redirect()->route('home')->with('error', 'You do not have permission to access this page.');
+        return redirect()->route('home')->with('error', 'Bạn không có quyền truy cập trang này. Chỉ Quản trị nội dung mới có quyền truy cập.');
     }
 }

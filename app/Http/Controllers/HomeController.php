@@ -19,21 +19,14 @@ class HomeController extends Controller
     }
 
     /**
-     * Show the application dashboard based on user role.
+     * Redirect to the dashboard controller
      *
-     * @return \Illuminate\Contracts\Support\Renderable
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function index()
     {
-        $user = Auth::user();
-        
-        if ($user->isAdmin()) {
-            return $this->adminDashboard();
-        } elseif ($user->isContentUser()) {
-            return $this->contentUserDashboard();
-        } else {
-            return $this->userDashboard();
-        }
+        // Chuyển hướng đến DashboardController để tránh trùng lặp logic
+        return redirect()->route('dashboard');
     }
     
     /**

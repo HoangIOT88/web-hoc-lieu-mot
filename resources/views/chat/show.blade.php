@@ -68,9 +68,9 @@
                     @endif
                     
                     <div class="mb-0">
-                        <h6 class="text-muted">Members ({{ $chatGroup->members->count() }})</h6>
+                        <h6 class="text-muted">Members ({{ count($members) }})</h6>
                         <div class="list-group list-group-flush mt-2">
-                            @foreach($chatGroup->members as $member)
+                            @foreach($members as $member)
                                 <div class="list-group-item px-0 py-2 d-flex align-items-center border-0">
                                     <div class="avatar bg-light text-primary rounded-circle me-2 d-flex align-items-center justify-content-center" 
                                          style="width: 32px; height: 32px;">
@@ -78,7 +78,7 @@
                                     </div>
                                     <div>
                                         <span class="d-block">{{ $member->name }}</span>
-                                        @if($member->id === $chatGroup->creator_id)
+                                        @if($member->id === $chatGroup->created_by)
                                             <small class="text-primary">Creator</small>
                                         @endif
                                     </div>
@@ -90,9 +90,14 @@
                 
                 @if(auth()->id() === $chatGroup->creator_id || auth()->user()->isAdmin())
                 <div class="card-footer">
-                    <a href="{{ route('chat-groups.edit', $chatGroup->id) }}" class="btn btn-sm btn-outline-primary w-100">
-                        <i class="fas fa-cog me-1"></i> Group Settings
-                    </a>
+                    <div class="d-grid gap-2">
+                        <a href="{{ route('chat-groups.edit', $chatGroup->id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-cog me-1"></i> Group Settings
+                        </a>
+                        <a href="{{ route('chat-groups.members.form', $chatGroup->id) }}" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-user-plus me-1"></i> Thêm thành viên
+                        </a>
+                    </div>
                 </div>
                 @endif
             </div>
@@ -110,15 +115,15 @@
                     <div id="messages-container" class="flex-grow-1 p-3 overflow-auto">
                         <div id="message-list">
                             @forelse($messages as $message)
-                                <div class="message-item mb-3 {{ $message->user_id === auth()->id() ? 'text-end' : '' }}">
-                                    <div class="d-inline-block message-bubble p-2 px-3 rounded-3 {{ $message->user_id === auth()->id() ? 'bg-primary text-white' : 'bg-light' }}" 
+                                <div class="message-item mb-3 {{ $message->sender_id === auth()->id() ? 'text-end' : '' }}">
+                                    <div class="d-inline-block message-bubble p-2 px-3 rounded-3 {{ $message->sender_id === auth()->id() ? 'bg-primary text-white' : 'bg-light' }}" 
                                          style="max-width: 75%;">
-                                        @if($message->user_id !== auth()->id())
-                                            <div class="fw-bold mb-1 small">{{ $message->user->name }}</div>
+                                        @if($message->sender_id !== auth()->id())
+                                            <div class="fw-bold mb-1 small">{{ $message->sender->name }}</div>
                                         @endif
                                         <div class="message-content">{{ $message->content }}</div>
-                                        <div class="message-time small {{ $message->user_id === auth()->id() ? 'text-white-50' : 'text-muted' }} mt-1">
-                                            {{ $message->created_at->format('h:i A') }}
+                                        <div class="message-time small {{ $message->sender_id === auth()->id() ? 'text-white-50' : 'text-muted' }} mt-1">
+                                            {{ $message->sent_at->format('h:i A') }}
                                         </div>
                                     </div>
                                 </div>
@@ -133,9 +138,8 @@
                     
                     <!-- Message Input -->
                     <div class="p-3 border-top">
-                        <form id="messageForm">
+                        <form id="messageForm" action="{{ route('messages.store', $chatGroup->id) }}" method="POST">
                             @csrf
-                            <input type="hidden" name="chat_group_id" value="{{ $chatGroup->id }}">
                             <div class="input-group">
                                 <textarea id="messageContent" name="content" class="form-control" placeholder="Type your message..." rows="1"></textarea>
                                 <button type="submit" class="btn btn-primary">
@@ -151,7 +155,7 @@
 </div>
 @endsection
 
-@push('scripts')
+@section('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const messagesContainer = document.getElementById('messages-container');
@@ -179,121 +183,122 @@
             }
             
             const formData = new FormData(this);
+            const url = this.getAttribute('action');
             
-            fetch('/chat/messages', {
+            fetch(url, {
                 method: 'POST',
                 body: formData,
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json',
-                },
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Clear input
-                    messageContent.value = '';
-                    messageContent.style.height = '38px';
-                    
-                    // Add message to UI
-                    const messageItem = document.createElement('div');
-                    messageItem.className = 'message-item mb-3 text-end';
-                    
-                    const time = new Date();
-                    const formattedTime = time.toLocaleString('en-US', { 
-                        hour: 'numeric', 
-                        minute: 'numeric', 
-                        hour12: true 
-                    });
-                    
-                    messageItem.innerHTML = `
-                        <div class="d-inline-block message-bubble p-2 px-3 rounded-3 bg-primary text-white" style="max-width: 75%;">
-                            <div class="message-content">${data.message.content}</div>
-                            <div class="message-time small text-white-50 mt-1">
-                                ${formattedTime}
-                            </div>
-                        </div>
-                    `;
-                    
-                    messageList.appendChild(messageItem);
-                    scrollToBottom();
-                    
-                    // If this is the first message, remove the empty state
-                    const emptyState = messageList.querySelector('.text-center.py-5');
-                    if (emptyState) {
-                        emptyState.remove();
-                    }
                 }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Clear input
+                messageContent.value = '';
+                messageContent.style.height = '38px';
+                
+                // Add message to UI
+                const messageItem = document.createElement('div');
+                messageItem.className = 'message-item mb-3 text-end';
+                
+                const time = new Date();
+                const formattedTime = time.toLocaleString('en-US', { 
+                    hour: 'numeric', 
+                    minute: 'numeric', 
+                    hour12: true 
+                });
+                
+                messageItem.innerHTML = `
+                    <div class="d-inline-block message-bubble p-2 px-3 rounded-3 bg-primary text-white" style="max-width: 75%;">
+                        <div class="message-content">${data.message.content}</div>
+                        <div class="message-time small text-white-50 mt-1">
+                            ${formattedTime}
+                        </div>
+                    </div>
+                `;
+                
+                messageList.appendChild(messageItem);
+                
+                // If this is the first message, remove the empty state
+                const emptyState = messageList.querySelector('.text-center.py-5');
+                if (emptyState) {
+                    emptyState.remove();
+                }
+                
+                // Scroll to bottom
+                scrollToBottom();
             })
             .catch(error => {
                 console.error('Error sending message:', error);
+                alert('Không thể gửi tin nhắn. Vui lòng thử lại sau.');
             });
         });
         
         // Initial scroll to bottom
         scrollToBottom();
         
-        // Auto refresh messages every 5 seconds
-        const refreshMessages = () => {
-            fetch(`/api/chat/${{{ $chatGroup->id }}}/messages?since=${getLastMessageTimestamp()}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.messages && data.messages.length > 0) {
-                        // Add new messages
-                        data.messages.forEach(message => {
-                            const messageItem = document.createElement('div');
-                            messageItem.className = `message-item mb-3 ${message.user_id == {{ auth()->id() }} ? 'text-end' : ''}`;
-                            
-                            messageItem.innerHTML = `
-                                <div class="d-inline-block message-bubble p-2 px-3 rounded-3 ${message.user_id == {{ auth()->id() }} ? 'bg-primary text-white' : 'bg-light'}" 
-                                     style="max-width: 75%;">
-                                    ${message.user_id != {{ auth()->id() }} ? `<div class="fw-bold mb-1 small">${message.user.name}</div>` : ''}
-                                    <div class="message-content">${message.content}</div>
-                                    <div class="message-time small ${message.user_id == {{ auth()->id() }} ? 'text-white-50' : 'text-muted'} mt-1">
-                                        ${formatTime(message.created_at)}
-                                    </div>
-                                </div>
-                            `;
-                            
-                            messageList.appendChild(messageItem);
+        // Poll for new messages every 5 seconds
+        setInterval(() => {
+            const url = `/chat-groups/${{{ $chatGroup->id }}}/messages`;
+            
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Messages data:', data); // Để debug
+                
+                // Check if there are messages (adjust the check based on your actual API response format)
+                if (data && data.length > 0) {
+                    // Clear existing messages
+                    messageList.innerHTML = '';
+                    
+                    // Add all messages
+                    data.forEach(message => {
+                        const isMine = message.sender_id === {{ auth()->id() }};
+                        
+                        const messageItem = document.createElement('div');
+                        messageItem.className = `message-item mb-3 ${isMine ? 'text-end' : ''}`;
+                        
+                        const sentAt = new Date(message.sent_at);
+                        const formattedTime = sentAt.toLocaleString('en-US', { 
+                            hour: 'numeric', 
+                            minute: 'numeric', 
+                            hour12: true 
                         });
                         
-                        // If these were the first messages, remove the empty state
-                        const emptyState = messageList.querySelector('.text-center.py-5');
-                        if (emptyState) {
-                            emptyState.remove();
-                        }
+                        messageItem.innerHTML = `
+                            <div class="d-inline-block message-bubble p-2 px-3 rounded-3 ${isMine ? 'bg-primary text-white' : 'bg-light'}" 
+                                 style="max-width: 75%;">
+                                ${!isMine ? `<div class="fw-bold mb-1 small">${message.sender.name}</div>` : ''}
+                                <div class="message-content">${message.content}</div>
+                                <div class="message-time small ${isMine ? 'text-white-50' : 'text-muted'} mt-1">
+                                    ${formattedTime}
+                                </div>
+                            </div>
+                        `;
                         
-                        scrollToBottom();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error refreshing messages:', error);
-                });
-        };
-        
-        // Get timestamp of last message for polling
-        const getLastMessageTimestamp = () => {
-            const messages = document.querySelectorAll('.message-item');
-            if (messages.length === 0) return 0;
-            
-            // In a real app, you would store the actual timestamp with each message
-            // This is a simplified approach
-            return Math.floor(Date.now() / 1000);
-        };
-        
-        // Format time for display
-        const formatTime = (timestamp) => {
-            const date = new Date(timestamp);
-            return date.toLocaleString('en-US', { 
-                hour: 'numeric', 
-                minute: 'numeric', 
-                hour12: true 
+                        messageList.appendChild(messageItem);
+                    });
+                    
+                    // Scroll to bottom
+                    scrollToBottom();
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching messages:', error);
             });
-        };
-        
-        // Set up polling interval
-        setInterval(refreshMessages, 5000);
+        }, 5000);
     });
 </script>
-@endpush 
+@endsection 

@@ -28,8 +28,14 @@ class MessageController extends Controller
      */
     public function store(Request $request, ChatGroup $chatGroup)
     {
-        // Check if the user is a member of this group
-        if (!$chatGroup->members->contains(Auth::id())) {
+        \Log::info('Message store method called', [
+            'chatGroup' => $chatGroup->id,
+            'user' => Auth::id(),
+            'request' => $request->all()
+        ]);
+        
+        // Check if the user is a member of this group, an admin, or a content user
+        if (!$chatGroup->members->contains(Auth::id()) && !Auth::user()->isAdmin() && !Auth::user()->isContentUser()) {
             return response()->json(['error' => 'You are not a member of this chat group.'], 403);
         }
         
@@ -44,12 +50,22 @@ class MessageController extends Controller
             'sent_at' => now(),
         ]);
         
+        // Load the sender relationship
+        $message->load('sender');
+        
         // If AJAX request
-        if ($request->expectsJson()) {
+        if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
-                'message' => $message,
-                'sender' => Auth::user()->name,
-                'sent_at' => $message->sent_at->format('M d, Y H:i'),
+                'message' => [
+                    'id' => $message->id,
+                    'content' => $message->content,
+                    'sender_id' => $message->sender_id,
+                    'sent_at' => $message->sent_at->format('Y-m-d H:i:s'),
+                ],
+                'sender' => [
+                    'id' => Auth::id(),
+                    'name' => Auth::user()->name,
+                ],
             ]);
         }
         
@@ -65,6 +81,8 @@ class MessageController extends Controller
      */
     public function getMessages(ChatGroup $chatGroup)
     {
+        \Log::info('Getting messages for group', ['chatGroup' => $chatGroup->id]);
+        
         // Check if the user is a member of this group
         if (!$chatGroup->members->contains(Auth::id()) && !Auth::user()->isAdmin()) {
             return response()->json(['error' => 'You are not a member of this chat group.'], 403);
@@ -72,8 +90,11 @@ class MessageController extends Controller
         
         $messages = $chatGroup->messages()
             ->with('sender:id,name')
-            ->latest()
-            ->paginate(50);
+            ->latest('sent_at')
+            ->limit(50)
+            ->get()
+            ->reverse()
+            ->values();
             
         return response()->json($messages);
     }

@@ -46,7 +46,7 @@ class ChatGroup extends Model
      */
     public function members(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'chat_group_users')
+        return $this->belongsToMany(User::class, 'chat_group_members', 'group_id', 'user_id')
             ->withPivot('joined_at')
             ->withTimestamps();
     }

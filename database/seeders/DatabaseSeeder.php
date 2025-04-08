@@ -19,39 +19,16 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create admin user
-        $admin = User::create([
-            'name' => 'Admin User',
-            'email' => 'admin@example.com',
-            'password' => Hash::make('password'),
-            'role' => 'ADMIN',
+        // Gọi seeder tạo người dùng
+        $this->call([
+            UsersTableSeeder::class,
         ]);
         
-        // Create content users (course managers)
-        $contentUser1 = User::create([
-            'name' => 'Content Manager 1',
-            'email' => 'content1@example.com',
-            'password' => Hash::make('password'),
-            'role' => 'CONTENT_USER',
-        ]);
-        
-        $contentUser2 = User::create([
-            'name' => 'Content Manager 2',
-            'email' => 'content2@example.com',
-            'password' => Hash::make('password'),
-            'role' => 'CONTENT_USER',
-        ]);
-        
-        // Create regular users (students)
-        $regularUsers = [];
-        for ($i = 1; $i <= 5; $i++) {
-            $regularUsers[] = User::create([
-                'name' => "Student $i",
-                'email' => "student$i@example.com",
-                'password' => Hash::make('password'),
-                'role' => 'USER',
-            ]);
-        }
+        // Lấy các người dùng đã được tạo
+        $admin = User::where('role', User::ROLE_ADMIN)->first();
+        $contentUser1 = User::where('email', 'content1test@example.com')->first();
+        $contentUser2 = User::where('email', 'content2test@example.com')->first();
+        $regularUsers = User::where('role', User::ROLE_USER)->take(3)->get();
         
         // Create sample courses
         $course1 = Course::create([
@@ -141,13 +118,13 @@ class DatabaseSeeder extends Seeder
         ]);
         
         $course2->registeredUsers()->attach([
+            $regularUsers[0]->id => ['registered_at' => now()],
             $regularUsers[1]->id => ['registered_at' => now()],
-            $regularUsers[3]->id => ['registered_at' => now()],
         ]);
         
         $course3->registeredUsers()->attach([
+            $regularUsers[0]->id => ['registered_at' => now()],
             $regularUsers[2]->id => ['registered_at' => now()],
-            $regularUsers[4]->id => ['registered_at' => now()],
         ]);
         
         // Create chat groups
@@ -176,8 +153,6 @@ class DatabaseSeeder extends Seeder
             $regularUsers[0]->id => ['joined_at' => now()],
             $regularUsers[1]->id => ['joined_at' => now()],
             $regularUsers[2]->id => ['joined_at' => now()],
-            $regularUsers[3]->id => ['joined_at' => now()],
-            $regularUsers[4]->id => ['joined_at' => now()],
         ]);
         
         $course1ChatGroup->members()->attach([
@@ -190,7 +165,6 @@ class DatabaseSeeder extends Seeder
         $course2ChatGroup->members()->attach([
             $contentUser1->id => ['joined_at' => now()],
             $regularUsers[1]->id => ['joined_at' => now()],
-            $regularUsers[3]->id => ['joined_at' => now()],
         ]);
     }
 }

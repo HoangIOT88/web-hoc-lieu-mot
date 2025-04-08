@@ -36,29 +36,53 @@
                         </li>
                         
                         @auth
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ route('course-registrations.index') }}">{{ __('Khóa học của tôi') }}</a>
-                            </li>
+                            @if (!Auth::user()->isAdmin() && !Auth::user()->isContentUser())
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{{ route('course-registrations.index') }}">{{ __('Khóa học của tôi') }}</a>
+                                </li>
+                                
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{{ route('chat-groups.index') }}">{{ __('Chat nhóm') }}</a>
+                                </li>
+                            @endif
                             
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ route('chat-groups.index') }}">{{ __('Chat nhóm') }}</a>
-                            </li>
-                            
-                            @if (Auth::user()->isContentUser() || Auth::user()->isAdmin())
+                            @if (Auth::user()->isContentUser())
                                 <li class="nav-item dropdown">
-                                    <a id="adminDropdown" class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
+                                    <a id="contentUserDropdown" class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
                                         {{ __('Quản lý nội dung') }}
                                     </a>
 
-                                    <div class="dropdown-menu dropdown-menu-end" aria-labelledby="adminDropdown">
-                                        @if (Auth::user()->isContentUser())
-                                            <a class="dropdown-item" href="{{ route('user-approvals.index') }}">
-                                                {{ __('Duyệt người dùng') }}
-                                            </a>
-                                        @endif
+                                    <div class="dropdown-menu dropdown-menu-end" aria-labelledby="contentUserDropdown">
+                                        <a class="dropdown-item" href="{{ route('user-approvals.index') }}">
+                                            {{ __('Duyệt người dùng') }}
+                                        </a>
                                         
                                         <a class="dropdown-item" href="{{ route('courses.create') }}">
                                             {{ __('Tạo khóa học mới') }}
+                                        </a>
+                                        
+                                        <a class="dropdown-item" href="{{ route('courses.index') }}">
+                                            {{ __('Danh sách khóa học') }}
+                                        </a>
+                                        
+                                        <a class="dropdown-item" href="{{ route('lectures.index') }}">
+                                            {{ __('Quản lý bài giảng') }}
+                                        </a>
+                                        
+                                        <a class="dropdown-item" href="{{ route('exercises.index') }}">
+                                            {{ __('Quản lý bài tập') }}
+                                        </a>
+                                        
+                                        <a class="dropdown-item" href="{{ route('exercise-submissions.index') }}">
+                                            {{ __('Bài nộp của học viên') }}
+                                        </a>
+                                        
+                                        <a class="dropdown-item" href="{{ route('course-registrations.index') }}">
+                                            {{ __('Quản lý đăng ký khóa học') }}
+                                        </a>
+                                        
+                                        <a class="dropdown-item" href="{{ route('chat-groups.index') }}">
+                                            {{ __('Quản lý nhóm chat') }}
                                         </a>
                                     </div>
                                 </li>
@@ -71,12 +95,37 @@
                                     </a>
 
                                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="adminDropdown">
-                                        <a class="dropdown-item" href="{{ route('users.index') }}">
+                                        <a class="dropdown-item" href="{{ route('admin.users.index') }}">
                                             {{ __('Quản lý người dùng') }}
                                         </a>
                                         
-                                        <a class="dropdown-item" href="{{ route('admin.reports') }}">
+                                        <a class="dropdown-item" href="{{ route('admin.reports.index') }}">
                                             {{ __('Thống kê người dùng') }}
+                                        </a>
+                                        
+                                        <a class="dropdown-item" href="{{ route('user-approvals.index') }}">
+                                            {{ __('Duyệt người dùng') }}
+                                        </a>
+                                    </div>
+                                </li>
+                                
+                                <!-- Admin Quick Access -->
+                                <li class="nav-item dropdown">
+                                    <a id="adminQuickAccessDropdown" class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
+                                        {{ __('Quản lý hệ thống') }}
+                                    </a>
+
+                                    <div class="dropdown-menu dropdown-menu-end" aria-labelledby="adminQuickAccessDropdown">
+                                        <a class="dropdown-item" href="{{ route('courses.index') }}">
+                                            {{ __('Quản lý khóa học') }}
+                                        </a>
+                                        
+                                        <a class="dropdown-item" href="{{ route('lectures.index') }}">
+                                            {{ __('Quản lý bài giảng') }}
+                                        </a>
+                                        
+                                        <a class="dropdown-item" href="{{ route('chat-groups.index') }}">
+                                            {{ __('Quản lý nhóm chat') }}
                                         </a>
                                     </div>
                                 </li>

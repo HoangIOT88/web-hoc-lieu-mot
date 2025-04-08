@@ -67,6 +67,7 @@ class Kernel extends HttpKernel
         'admin' => \App\Http\Middleware\AdminMiddleware::class,
         'content.user' => \App\Http\Middleware\ContentUserMiddleware::class,
         'regular.user' => \App\Http\Middleware\RegularUserMiddleware::class,
+        'role' => \App\Http\Middleware\RoleMiddleware::class,
     ];
 
     /**
@@ -91,5 +92,6 @@ class Kernel extends HttpKernel
         'content.user' => \App\Http\Middleware\ContentUserMiddleware::class,
         'regular.user' => \App\Http\Middleware\RegularUserMiddleware::class,
         'course.registered' => \App\Http\Middleware\CourseRegisteredMiddleware::class,
+        'role' => \App\Http\Middleware\RoleMiddleware::class,
     ];
 }

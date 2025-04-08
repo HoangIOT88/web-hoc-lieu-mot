@@ -16,9 +16,9 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
-    const ROLE_ADMIN = 'admin';
-    const ROLE_CONTENT_USER = 'content_user';
-    const ROLE_USER = 'user';
+    const ROLE_ADMIN = 'ADMIN';
+    const ROLE_CONTENT_USER = 'CONTENT_USER';
+    const ROLE_USER = 'USER';
 
     /**
      * The attributes that are mass assignable.
@@ -97,7 +97,7 @@ class User extends Authenticatable
      */
     public function chatGroups(): BelongsToMany
     {
-        return $this->belongsToMany(ChatGroup::class, 'chat_group_users')
+        return $this->belongsToMany(ChatGroup::class, 'chat_group_members', 'user_id', 'group_id')
             ->withPivot('joined_at')
             ->withTimestamps();
     }

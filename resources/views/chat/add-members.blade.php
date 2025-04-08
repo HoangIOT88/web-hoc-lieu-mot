@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Create Chat Group')
+@section('title', 'Thêm thành viên vào nhóm chat')
 
 @section('styles')
 <!-- Select2 CSS -->
@@ -20,55 +20,44 @@
 <div class="container py-4">
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h1 class="h3 mb-0">Tạo nhóm chat mới</h1>
-            <a href="{{ route('chat-groups.index') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left me-1"></i> Quay lại
-            </a>
+            <h1 class="h3 mb-0">Thêm thành viên vào: {{ $chatGroup->name }}</h1>
+            <div>
+                <a href="{{ route('chat-groups.show', $chatGroup) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Quay lại
+                </a>
+            </div>
         </div>
         
         <div class="card-body">
-            <form action="{{ route('chat-groups.store') }}" method="POST">
-                @csrf
-                
-                <div class="mb-3">
-                    <label for="name" class="form-label">Tên nhóm <span class="text-danger">*</span></label>
-                    <input type="text" name="name" id="name" class="form-control @error('name') is-invalid @enderror" 
-                           value="{{ old('name') }}" required>
-                    @error('name')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
+            @if($users->isEmpty())
+                <div class="alert alert-info">
+                    Tất cả người dùng đã được thêm vào nhóm chat này.
                 </div>
-                
-                <div class="mb-3">
-                    <label for="description" class="form-label">Mô tả</label>
-                    <textarea name="description" id="description" class="form-control @error('description') is-invalid @enderror" 
-                              rows="3">{{ old('description') }}</textarea>
-                    @error('description')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                    <small class="text-muted">Mô tả ngắn gọn về mục đích của nhóm chat này</small>
-                </div>
-                
-                <div class="mb-4">
-                    <label for="members" class="form-label">Thêm thành viên</label>
-                    <select id="members" name="members[]" class="form-select select2-multiple @error('members') is-invalid @enderror" 
-                            multiple="multiple" data-placeholder="Tìm và chọn thành viên...">
-                        @foreach($users as $user)
-                            <option value="{{ $user->id }}">{{ $user->name }} ({{ $user->email }})</option>
-                        @endforeach
-                    </select>
-                    @error('members')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                    <small class="text-muted">Bạn sẽ tự động được thêm vào nhóm với tư cách người tạo</small>
-                </div>
-                
-                <div class="text-end">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-1"></i> Tạo nhóm
-                    </button>
-                </div>
-            </form>
+            @else
+                <form action="{{ route('chat-groups.members.add', $chatGroup) }}" method="POST">
+                    @csrf
+                    
+                    <div class="mb-4">
+                        <label for="members" class="form-label">Chọn thành viên để thêm vào</label>
+                        <select id="members" name="members[]" class="form-select select2-multiple @error('members') is-invalid @enderror" 
+                                multiple="multiple" data-placeholder="Tìm và chọn thành viên..." required>
+                            @foreach($users as $user)
+                                <option value="{{ $user->id }}">{{ $user->name }} ({{ $user->email }})</option>
+                            @endforeach
+                        </select>
+                        @error('members')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                        <small class="text-muted">Bạn có thể chọn nhiều thành viên cùng lúc</small>
+                    </div>
+                    
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-user-plus me-1"></i> Thêm thành viên
+                        </button>
+                    </div>
+                </form>
+            @endif
         </div>
     </div>
 </div>

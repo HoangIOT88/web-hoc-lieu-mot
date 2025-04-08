@@ -1,0 +1,106 @@
+@extends('layouts.app')
+
+@section('title', 'Chỉnh sửa người dùng')
+
+@section('content')
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">{{ __('Chỉnh sửa người dùng: ') }} {{ $user->name }}</div>
+
+                <div class="card-body">
+                    <form method="POST" action="{{ route('admin.users.update', $user) }}">
+                        @csrf
+                        @method('PUT')
+
+                        <div class="row mb-3">
+                            <label for="name" class="col-md-4 col-form-label text-md-end">{{ __('Tên') }}</label>
+
+                            <div class="col-md-6">
+                                <input id="name" type="text" class="form-control @error('name') is-invalid @enderror" name="name" value="{{ old('name', $user->name) }}" required autocomplete="name" autofocus>
+
+                                @error('name')
+                                    <span class="invalid-feedback" role="alert">
+                                        <strong>{{ $message }}</strong>
+                                    </span>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <label for="email" class="col-md-4 col-form-label text-md-end">{{ __('Email') }}</label>
+
+                            <div class="col-md-6">
+                                <input id="email" type="email" class="form-control @error('email') is-invalid @enderror" name="email" value="{{ old('email', $user->email) }}" required autocomplete="email">
+
+                                @error('email')
+                                    <span class="invalid-feedback" role="alert">
+                                        <strong>{{ $message }}</strong>
+                                    </span>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <label for="password" class="col-md-4 col-form-label text-md-end">{{ __('Mật khẩu') }}</label>
+
+                            <div class="col-md-6">
+                                <input id="password" type="password" class="form-control @error('password') is-invalid @enderror" name="password" autocomplete="new-password">
+                                <small class="form-text text-muted">{{ __('Để trống nếu không muốn thay đổi mật khẩu') }}</small>
+
+                                @error('password')
+                                    <span class="invalid-feedback" role="alert">
+                                        <strong>{{ $message }}</strong>
+                                    </span>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <label for="password-confirm" class="col-md-4 col-form-label text-md-end">{{ __('Xác nhận mật khẩu') }}</label>
+
+                            <div class="col-md-6">
+                                <input id="password-confirm" type="password" class="form-control" name="password_confirmation" autocomplete="new-password">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <label for="role" class="col-md-4 col-form-label text-md-end">{{ __('Vai trò') }}</label>
+
+                            <div class="col-md-6">
+                                <select id="role" class="form-select @error('role') is-invalid @enderror" name="role" required>
+                                    <option value="{{ \App\Models\User::ROLE_USER }}" {{ old('role', $user->role) == \App\Models\User::ROLE_USER ? 'selected' : '' }}>Regular User</option>
+                                    <option value="{{ \App\Models\User::ROLE_CONTENT_USER }}" {{ old('role', $user->role) == \App\Models\User::ROLE_CONTENT_USER ? 'selected' : '' }}>Content User</option>
+                                    <option value="{{ \App\Models\User::ROLE_ADMIN }}" {{ old('role', $user->role) == \App\Models\User::ROLE_ADMIN ? 'selected' : '' }}>Admin</option>
+                                </select>
+
+                                @error('role')
+                                    <span class="invalid-feedback" role="alert">
+                                        <strong>{{ $message }}</strong>
+                                    </span>
+                                @enderror
+
+                                @if($user->id === auth()->id() && $user->isAdmin())
+                                    <small class="form-text text-danger">{{ __('Cảnh báo: Thay đổi vai trò của chính bạn có thể dẫn đến mất quyền truy cập trang quản trị.') }}</small>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="row mb-0">
+                            <div class="col-md-6 offset-md-4">
+                                <button type="submit" class="btn btn-primary">
+                                    {{ __('Cập nhật') }}
+                                </button>
+                                <a href="{{ route('admin.users.index') }}" class="btn btn-secondary">
+                                    {{ __('Hủy') }}
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection 

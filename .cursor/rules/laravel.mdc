@@ -107,7 +107,7 @@ Laravel Version: 10.48.29
 
   ------------
 
-  🛠 Technologies & Environment
+	Technologies & Environment
 	•	Backend Framework: Laravel 10.48.29
 	•	PHP Version: 8.2.28 (cli)
 	•	Database: MySQL (Ver 9.2.0 for macOS 15.2 on ARM64 - Homebrew)
@@ -116,7 +116,7 @@ Laravel Version: 10.48.29
 
 ⸻
 
-🚩 Project Goal
+Project Goal
 
 Implement a fully functional web-based Education Management System with 3 clearly defined user groups:
 	•	Regular User (Student)
@@ -125,9 +125,9 @@ Implement a fully functional web-based Education Management System with 3 clearl
 
 ⸻
 
-📑 Activity Flow (Detailed Rules)
+Activity Flow (Detailed Rules)
 
-✅ A. Regular User (Student)
+A. Regular User (Student)
 
 Viewing Courses
 	•	User visits the website.
@@ -165,7 +165,7 @@ Group Chat
 
 ⸻
 
-✅ B. Content User (Course Manager)
+B. Content User (Course Manager)
 
 Create/Delete Courses
 	•	Logs into the system.
@@ -212,7 +212,7 @@ Adding Users
 
 ⸻
 
-✅ C. Admin User (System Administrator)
+C. Admin User (System Administrator)
 
 Managing Users
 	•	Logs into admin dashboard.
@@ -228,7 +228,7 @@ User Statistics & Reports
 
 ⸻
 
-🗃️ Database Schema (Detailed ERD Rules)
+Database Schema (Detailed ERD Rules)
 
 Entities:
 
@@ -267,7 +267,7 @@ AdminReport
 
 ⸻
 
-⚙️ ERD Relationships:
+ERD Relationships:
 	•	User (1-n) Course: managed by Content User.
 	•	User (n-n) Course: via CourseRegistration.
 	•	Course (1-n) Lecture.
@@ -282,9 +282,9 @@ AdminReport
 	•	User (1-n) UserApproval: Reviewed User.
 	•	User/Admin (1-n) AdminReport.
 
-⸻
+⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻
 
-📌 AI Development Rules & Recommendations
+AI Development Rules & Recommendations
 	•	Structure & Clarity:
 Clearly separate each user group’s logic into Laravel Controllers and routes.
 	•	Follow Laravel Best Practices:

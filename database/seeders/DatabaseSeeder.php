@@ -19,152 +19,46 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Gọi seeder tạo người dùng
-        $this->call([
-            UsersTableSeeder::class,
-        ]);
+        // Tạo người dùng admin
+        $admin = User::firstOrCreate(
+            ['email' => 'admin@example.com'],
+            [
+                'name' => 'Admin User',
+                'email' => 'admin@example.com',
+                'password' => Hash::make('password'),
+                'role' => 'ADMIN',
+                'email_verified_at' => now(),
+            ]
+        );
         
-        // Lấy các người dùng đã được tạo
-        $admin = User::where('role', User::ROLE_ADMIN)->first();
-        $contentUser1 = User::where('email', 'content1test@example.com')->first();
-        $contentUser2 = User::where('email', 'content2test@example.com')->first();
-        $regularUsers = User::where('role', User::ROLE_USER)->take(3)->get();
+        // Tạo người dùng content
+        $contentUser = User::firstOrCreate(
+            ['email' => 'content@example.com'],
+            [
+                'name' => 'Content User',
+                'email' => 'content@example.com',
+                'password' => Hash::make('password'),
+                'role' => 'CONTENT_USER',
+                'email_verified_at' => now(),
+            ]
+        );
         
-        // Create sample courses
-        $course1 = Course::create([
-            'name' => 'Introduction to Programming',
-            'description' => 'A beginner-friendly course covering the basics of programming.',
-            'duration' => '8 weeks',
-            'content_user_id' => $contentUser1->id,
-        ]);
+        // Tạo người dùng thường
+        $regularUser = User::firstOrCreate(
+            ['email' => 'user@example.com'],
+            [
+                'name' => 'Regular User',
+                'email' => 'user@example.com',
+                'password' => Hash::make('password'),
+                'role' => 'USER',
+                'email_verified_at' => now(),
+            ]
+        );
         
-        $course2 = Course::create([
-            'name' => 'Advanced Web Development',
-            'description' => 'Learn modern web development techniques and frameworks.',
-            'duration' => '12 weeks',
-            'content_user_id' => $contentUser1->id,
-        ]);
-        
-        $course3 = Course::create([
-            'name' => 'Data Science Fundamentals',
-            'description' => 'An introduction to data science, analytics, and visualization.',
-            'duration' => '10 weeks',
-            'content_user_id' => $contentUser2->id,
-        ]);
-        
-        // Create sample lectures for courses
-        Lecture::create([
-            'course_id' => $course1->id,
-            'title' => 'Getting Started with Programming',
-            'description' => 'Learn the basics of programming concepts.',
-            'file_url' => 'lectures/intro_programming_01.pdf',
-        ]);
-        
-        Lecture::create([
-            'course_id' => $course1->id,
-            'title' => 'Variables and Data Types',
-            'description' => 'Understanding variables and data types in programming.',
-            'file_url' => 'lectures/intro_programming_02.pdf',
-        ]);
-        
-        Lecture::create([
-            'course_id' => $course2->id,
-            'title' => 'Modern JavaScript Frameworks',
-            'description' => 'An overview of popular JavaScript frameworks.',
-            'file_url' => 'lectures/web_dev_01.pdf',
-        ]);
-        
-        Lecture::create([
-            'course_id' => $course3->id,
-            'title' => 'Introduction to Data Analysis',
-            'description' => 'Basic concepts in data analysis.',
-            'file_url' => 'lectures/data_science_01.pdf',
-        ]);
-        
-        // Create sample exercises
-        Exercise::create([
-            'course_id' => $course1->id,
-            'title' => 'Hello World Program',
-            'content' => 'Write a simple program that prints "Hello, World!" to the console.',
-            'deadline' => now()->addWeeks(1),
-        ]);
-        
-        Exercise::create([
-            'course_id' => $course1->id,
-            'title' => 'Working with Variables',
-            'content' => 'Create variables of different data types and perform operations on them.',
-            'deadline' => now()->addWeeks(2),
-        ]);
-        
-        Exercise::create([
-            'course_id' => $course2->id,
-            'title' => 'Building a Simple React Component',
-            'content' => 'Create a functional React component that displays user information.',
-            'deadline' => now()->addWeeks(1),
-        ]);
-        
-        Exercise::create([
-            'course_id' => $course3->id,
-            'title' => 'Data Cleaning and Preparation',
-            'content' => 'Clean and prepare a dataset for analysis.',
-            'deadline' => now()->addWeeks(1),
-        ]);
-        
-        // Register some users for courses
-        $course1->registeredUsers()->attach([
-            $regularUsers[0]->id => ['registered_at' => now()],
-            $regularUsers[1]->id => ['registered_at' => now()],
-            $regularUsers[2]->id => ['registered_at' => now()],
-        ]);
-        
-        $course2->registeredUsers()->attach([
-            $regularUsers[0]->id => ['registered_at' => now()],
-            $regularUsers[1]->id => ['registered_at' => now()],
-        ]);
-        
-        $course3->registeredUsers()->attach([
-            $regularUsers[0]->id => ['registered_at' => now()],
-            $regularUsers[2]->id => ['registered_at' => now()],
-        ]);
-        
-        // Create chat groups
-        $generalChatGroup = ChatGroup::create([
-            'name' => 'General Discussion',
-            'description' => 'A place for general discussion about programming.',
-            'created_by' => $contentUser1->id,
-        ]);
-        
-        $course1ChatGroup = ChatGroup::create([
-            'name' => 'Intro to Programming Group',
-            'description' => 'Discussion group for Introduction to Programming course.',
-            'created_by' => $contentUser1->id,
-        ]);
-        
-        $course2ChatGroup = ChatGroup::create([
-            'name' => 'Web Development Group',
-            'description' => 'Discussion group for Advanced Web Development course.',
-            'created_by' => $contentUser1->id,
-        ]);
-        
-        // Add members to chat groups
-        $generalChatGroup->members()->attach([
-            $contentUser1->id => ['joined_at' => now()],
-            $contentUser2->id => ['joined_at' => now()],
-            $regularUsers[0]->id => ['joined_at' => now()],
-            $regularUsers[1]->id => ['joined_at' => now()],
-            $regularUsers[2]->id => ['joined_at' => now()],
-        ]);
-        
-        $course1ChatGroup->members()->attach([
-            $contentUser1->id => ['joined_at' => now()],
-            $regularUsers[0]->id => ['joined_at' => now()],
-            $regularUsers[1]->id => ['joined_at' => now()],
-            $regularUsers[2]->id => ['joined_at' => now()],
-        ]);
-        
-        $course2ChatGroup->members()->attach([
-            $contentUser1->id => ['joined_at' => now()],
-            $regularUsers[1]->id => ['joined_at' => now()],
-        ]);
+        // Thông báo tạo người dùng thành công
+        echo "Các tài khoản mẫu đã được tạo:\n";
+        echo "Admin: admin@example.com / password\n";
+        echo "Content: content@example.com / password\n";
+        echo "User: user@example.com / password\n";
     }
 }

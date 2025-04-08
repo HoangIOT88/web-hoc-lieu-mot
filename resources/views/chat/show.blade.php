@@ -8,18 +8,25 @@
         height: calc(100vh - 300px);
         min-height: 400px;
     }
-    .message-list {
-        height: calc(100% - 70px);
+    #messages-container {
+        height: calc(100% - 60px);
+        max-height: calc(100vh - 230px);
         overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+    }
+    #message-list {
+        width: 100%;
     }
     .message-input {
-        height: 70px;
+        height: 60px;
     }
     .message-bubble {
         max-width: 80%;
         margin-bottom: 10px;
         padding: 10px 15px;
         border-radius: 18px;
+        word-break: break-word;
     }
     .message-mine {
         background-color: #dcf8c6;
@@ -37,6 +44,21 @@
         height: calc(100vh - 300px);
         min-height: 400px;
         overflow-y: auto;
+    }
+    
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+        width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #555;
     }
 </style>
 @endsection
@@ -138,6 +160,9 @@
                     
                     <!-- Message Input -->
                     <div class="p-3 border-top">
+                        <div id="typing-indicator" class="small text-muted mb-2" style="height: 18px; display: none;">
+                            <span class="typing-name"></span> đang nhập...
+                        </div>
                         <form id="messageForm" action="{{ route('messages.store', $chatGroup->id) }}" method="POST">
                             @csrf
                             <div class="input-group">
@@ -156,6 +181,7 @@
 @endsection
 
 @section('scripts')
+<script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const messagesContainer = document.getElementById('messages-container');
@@ -163,16 +189,161 @@
         const messageForm = document.getElementById('messageForm');
         const messageContent = document.getElementById('messageContent');
         
-        // Auto-resize textarea
+        // Biến để kiểm tra người dùng có đang cuộn lên để xem tin nhắn cũ không
+        let isScrolledUp = false;
+        let hasNewMessages = false;
+        
+        // Auto-resize textarea and typing indicator
+        let typingTimer;
+        const typingInterval = 2000; // 2 giây
+        
         messageContent.addEventListener('input', function() {
+            // Auto-resize
             this.style.height = '38px';
             this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+            
+            // Emit typing event
+            clearTimeout(typingTimer);
+            
+            // Gửi sự kiện typing nếu có nội dung
+            if (this.value.trim().length > 0) {
+                // Gửi yêu cầu để broadcast sự kiện typing
+                fetch('{{ route("chat.typing", $chatGroup->id) }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                }).catch(err => console.error('Error sending typing indicator:', err));
+            }
+            
+            // Dừng typing sau khoảng thời gian
+            typingTimer = setTimeout(() => {
+                // Gửi yêu cầu để dừng broadcast sự kiện typing nếu người dùng dừng gõ
+                fetch('{{ route("chat.stop-typing", $chatGroup->id) }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                }).catch(err => console.error('Error sending stop typing indicator:', err));
+            }, typingInterval);
+        });
+        
+        // Theo dõi vị trí cuộn
+        messagesContainer.addEventListener('scroll', function() {
+            const atBottom = (messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight) < 50;
+            isScrolledUp = !atBottom;
+            
+            // Nếu người dùng cuộn xuống dưới và có tin nhắn mới, xóa thông báo tin nhắn mới
+            if (atBottom && hasNewMessages) {
+                hasNewMessages = false;
+                // Xóa thông báo nếu có
+                const newMessageNotification = document.getElementById('new-message-notification');
+                if (newMessageNotification) {
+                    newMessageNotification.remove();
+                }
+            }
         });
         
         // Scroll to bottom of messages
-        const scrollToBottom = () => {
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        const scrollToBottom = (force = false) => {
+            if (force || !isScrolledUp) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            } else if (!document.getElementById('new-message-notification')) {
+                // Nếu người dùng đang cuộn lên và không có thông báo, hiển thị thông báo tin nhắn mới
+                hasNewMessages = true;
+                const notification = document.createElement('div');
+                notification.id = 'new-message-notification';
+                notification.className = 'position-absolute bottom-0 start-50 translate-middle-x mb-3 bg-primary text-white px-3 py-2 rounded-pill shadow-sm';
+                notification.style.zIndex = '100';
+                notification.innerHTML = 'Tin nhắn mới <i class="fas fa-arrow-down ms-1"></i>';
+                notification.style.cursor = 'pointer';
+                notification.onclick = () => scrollToBottom(true);
+                messagesContainer.parentNode.appendChild(notification);
+            }
         };
+        
+        // Gọi scrollToBottom() ngay khi load trang
+        scrollToBottom(true);
+        
+        // Khởi tạo Pusher
+        const pusherKey = '{{ config("broadcasting.connections.pusher.key") }}';
+        const pusherCluster = '{{ config("broadcasting.connections.pusher.options.cluster") }}';
+        
+        if (pusherKey) {
+            const pusher = new Pusher(pusherKey, {
+                cluster: pusherCluster,
+                encrypted: true,
+                authEndpoint: '/broadcasting/auth',
+                auth: {
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    },
+                }
+            });
+            
+            // Đăng ký kênh riêng tư của nhóm chat
+            const channel = pusher.subscribe('private-chat-group.{{ $chatGroup->id }}');
+            
+            // Theo dõi trạng thái kết nối
+            pusher.connection.bind('state_change', function(states) {
+                console.log('Pusher connection state:', states.current);
+            });
+
+            // Theo dõi lỗi
+            pusher.connection.bind('error', function(err) {
+                console.error('Pusher connection error:', err);
+            });
+
+            // Theo dõi thành công
+            channel.bind('subscription_succeeded', function() {
+                console.log('Successfully subscribed to channel');
+            });
+
+            // Theo dõi lỗi kênh
+            channel.bind('subscription_error', function(status) {
+                console.error('Error subscribing to channel:', status);
+            });
+            
+            // Lắng nghe sự kiện tin nhắn mới
+            channel.bind('new-message', function(data) {
+                console.log('Received message:', data);
+                // Thêm tin nhắn mới vào giao diện
+                appendMessage(data, false);
+                
+                // Cuộn xuống dưới cùng tùy theo trạng thái
+                scrollToBottom();
+            });
+            
+            // Lắng nghe sự kiện người dùng đang gõ
+            channel.bind('typing', function(data) {
+                console.log('User typing:', data);
+                const typingIndicator = document.getElementById('typing-indicator');
+                const typingName = typingIndicator.querySelector('.typing-name');
+                
+                // Không hiển thị typing nếu là chính mình
+                if (data.user_id == {{ Auth::id() }}) {
+                    return;
+                }
+                
+                typingName.textContent = data.user_name;
+                typingIndicator.style.display = 'block';
+            });
+            
+            // Lắng nghe sự kiện người dùng dừng gõ
+            channel.bind('stop-typing', function(data) {
+                console.log('User stopped typing:', data);
+                const typingIndicator = document.getElementById('typing-indicator');
+                
+                // Nếu không có người dùng nào đang gõ nữa
+                if (data.user_id != {{ Auth::id() }}) {
+                    typingIndicator.style.display = 'none';
+                }
+            });
+        }
         
         // Send message
         messageForm.addEventListener('submit', function(e) {
@@ -191,6 +362,7 @@
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 }
             })
             .then(response => {
@@ -204,101 +376,44 @@
                 messageContent.value = '';
                 messageContent.style.height = '38px';
                 
-                // Add message to UI
-                const messageItem = document.createElement('div');
-                messageItem.className = 'message-item mb-3 text-end';
-                
-                const time = new Date();
-                const formattedTime = time.toLocaleString('en-US', { 
-                    hour: 'numeric', 
-                    minute: 'numeric', 
-                    hour12: true 
-                });
-                
-                messageItem.innerHTML = `
-                    <div class="d-inline-block message-bubble p-2 px-3 rounded-3 bg-primary text-white" style="max-width: 75%;">
-                        <div class="message-content">${data.message.content}</div>
-                        <div class="message-time small text-white-50 mt-1">
-                            ${formattedTime}
-                        </div>
-                    </div>
-                `;
-                
-                messageList.appendChild(messageItem);
-                
-                // If this is the first message, remove the empty state
-                const emptyState = messageList.querySelector('.text-center.py-5');
-                if (emptyState) {
-                    emptyState.remove();
-                }
+                // Append message
+                appendMessage({
+                    id: data.message.id,
+                    content: data.message.content,
+                    sender_id: data.sender.id,
+                    sender_name: data.sender.name,
+                    sent_at: data.message.sent_at
+                }, true);
                 
                 // Scroll to bottom
                 scrollToBottom();
             })
             .catch(error => {
                 console.error('Error sending message:', error);
-                alert('Không thể gửi tin nhắn. Vui lòng thử lại sau.');
+                alert('Có lỗi xảy ra khi gửi tin nhắn. Vui lòng thử lại!');
             });
         });
         
-        // Initial scroll to bottom
-        scrollToBottom();
-        
-        // Poll for new messages every 5 seconds
-        setInterval(() => {
-            const url = `/chat-groups/${{{ $chatGroup->id }}}/messages`;
+        // Hàm thêm tin nhắn vào giao diện
+        function appendMessage(message, isMine) {
+            const currentUserId = {{ Auth::id() }};
+            const isMyMessage = isMine || message.sender_id === currentUserId;
             
-            fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json',
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Messages data:', data); // Để debug
-                
-                // Check if there are messages (adjust the check based on your actual API response format)
-                if (data && data.length > 0) {
-                    // Clear existing messages
-                    messageList.innerHTML = '';
-                    
-                    // Add all messages
-                    data.forEach(message => {
-                        const isMine = message.sender_id === {{ auth()->id() }};
-                        
-                        const messageItem = document.createElement('div');
-                        messageItem.className = `message-item mb-3 ${isMine ? 'text-end' : ''}`;
-                        
-                        const sentAt = new Date(message.sent_at);
-                        const formattedTime = sentAt.toLocaleString('en-US', { 
-                            hour: 'numeric', 
-                            minute: 'numeric', 
-                            hour12: true 
-                        });
-                        
-                        messageItem.innerHTML = `
-                            <div class="d-inline-block message-bubble p-2 px-3 rounded-3 ${isMine ? 'bg-primary text-white' : 'bg-light'}" 
-                                 style="max-width: 75%;">
-                                ${!isMine ? `<div class="fw-bold mb-1 small">${message.sender.name}</div>` : ''}
-                                <div class="message-content">${message.content}</div>
-                                <div class="message-time small ${isMine ? 'text-white-50' : 'text-muted'} mt-1">
-                                    ${formattedTime}
-                                </div>
-                            </div>
-                        `;
-                        
-                        messageList.appendChild(messageItem);
-                    });
-                    
-                    // Scroll to bottom
-                    scrollToBottom();
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching messages:', error);
-            });
-        }, 5000);
+            const messageHtml = `
+                <div class="message-item mb-3 ${isMyMessage ? 'text-end' : ''}">
+                    <div class="d-inline-block message-bubble p-2 px-3 rounded-3 ${isMyMessage ? 'bg-primary text-white' : 'bg-light'}" 
+                         style="max-width: 75%;">
+                        ${!isMyMessage ? `<div class="fw-bold mb-1 small">${message.sender_name}</div>` : ''}
+                        <div class="message-content">${message.content}</div>
+                        <div class="message-time small ${isMyMessage ? 'text-white-50' : 'text-muted'} mt-1">
+                            ${message.sent_at}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            messageList.insertAdjacentHTML('beforeend', messageHtml);
+        }
     });
 </script>
 @endsection 

@@ -12,6 +12,7 @@ class BroadcastServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Bỏ comment để cho phép kênh private và presence hoạt động
         Broadcast::routes();
 
         require base_path('routes/channels.php');

@@ -98,3 +98,10 @@ Route::get('exercise-submissions/all', [App\Http\Controllers\ExerciseSubmissionC
 Route::get('exercise-submissions/{submission}', [App\Http\Controllers\ExerciseSubmissionController::class, 'show'])->name('exercise-submissions.show');
 Route::get('exercise-submissions/{submission}/grade', [App\Http\Controllers\ExerciseSubmissionController::class, 'showGradeForm'])->name('exercise-submissions.grade-form');
 Route::post('exercise-submissions/{submission}/grade', [App\Http\Controllers\ExerciseSubmissionController::class, 'grade'])->name('exercise-submissions.grade');
+
+// Chat Messages Routes
+Route::middleware('auth')->group(function () {
+    Route::post('/chat-groups/{chatGroup}/messages', [App\Http\Controllers\MessageController::class, 'store'])->name('messages.store');
+    Route::post('/chat-groups/{chatGroup}/typing', [App\Http\Controllers\MessageController::class, 'typing'])->name('chat.typing');
+    Route::post('/chat-groups/{chatGroup}/stop-typing', [App\Http\Controllers\MessageController::class, 'stopTyping'])->name('chat.stop-typing');
+});

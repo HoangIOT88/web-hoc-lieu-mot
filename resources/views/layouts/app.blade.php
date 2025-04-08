@@ -14,6 +14,22 @@
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     
+    <!-- Additional CSS -->
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        main {
+            flex: 1 0 auto;
+        }
+        footer {
+            margin-top: auto;
+        }
+    </style>
+    
     <!-- Additional Styles -->
     @yield('styles')
 </head>
@@ -209,8 +225,35 @@
         </footer>
     </div>
     
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    
     <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Pusher Script -->
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    
+    <!-- Laravel Echo -->
+    <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.15.3/dist/echo.iife.js"></script>
+    
+    <!-- Real-time chat configuration -->
+    <script>
+        // CSRF token for Ajax requests
+        $.ajaxSetup({
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            }
+        });
+        
+        // Configure Laravel Echo
+        window.Echo = new Echo({
+            broadcaster: 'pusher',
+            key: '{{ config("broadcasting.connections.pusher.key") }}',
+            cluster: '{{ config("broadcasting.connections.pusher.options.cluster") }}',
+            forceTLS: true
+        });
+    </script>
     
     <!-- Additional Scripts -->
     @yield('scripts')

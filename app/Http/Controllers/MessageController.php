@@ -6,6 +6,8 @@ use App\Models\ChatGroup;
 use App\Models\Message;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use App\Events\NewMessageEvent;
 
 class MessageController extends Controller
 {
@@ -34,8 +36,14 @@ class MessageController extends Controller
             'request' => $request->all()
         ]);
         
-        // Check if the user is a member of this group, an admin, or a content user
-        if (!$chatGroup->members->contains(Auth::id()) && !Auth::user()->isAdmin() && !Auth::user()->isContentUser()) {
+        // Kiểm tra sử dụng trực tiếp SQL thay vì qua relationship, để đồng bộ với fix trước đó
+        $isMember = DB::table('chat_group_members')
+            ->where('group_id', $chatGroup->id)
+            ->where('user_id', Auth::id())
+            ->exists();
+        
+        // Check if the user is a member of this group, an admin, or a content user  
+        if (!$isMember && !Auth::user()->isAdmin() && !Auth::user()->isContentUser()) {
             return response()->json(['error' => 'You are not a member of this chat group.'], 403);
         }
         
@@ -52,6 +60,9 @@ class MessageController extends Controller
         
         // Load the sender relationship
         $message->load('sender');
+        
+        // Kích hoạt event để broadcasting tin nhắn real-time
+        broadcast(new NewMessageEvent($message))->toOthers();
         
         // If AJAX request
         if ($request->expectsJson() || $request->ajax()) {
@@ -83,8 +94,14 @@ class MessageController extends Controller
     {
         \Log::info('Getting messages for group', ['chatGroup' => $chatGroup->id]);
         
+        // Kiểm tra sử dụng trực tiếp SQL thay vì qua relationship
+        $isMember = DB::table('chat_group_members')
+            ->where('group_id', $chatGroup->id)
+            ->where('user_id', Auth::id())
+            ->exists();
+        
         // Check if the user is a member of this group
-        if (!$chatGroup->members->contains(Auth::id()) && !Auth::user()->isAdmin()) {
+        if (!$isMember && !Auth::user()->isAdmin()) {
             return response()->json(['error' => 'You are not a member of this chat group.'], 403);
         }
         
@@ -108,8 +125,14 @@ class MessageController extends Controller
      */
     public function getNewMessages(Request $request, ChatGroup $chatGroup)
     {
+        // Kiểm tra sử dụng trực tiếp SQL thay vì qua relationship
+        $isMember = DB::table('chat_group_members')
+            ->where('group_id', $chatGroup->id)
+            ->where('user_id', Auth::id())
+            ->exists();
+        
         // Check if the user is a member of this group
-        if (!$chatGroup->members->contains(Auth::id()) && !Auth::user()->isAdmin()) {
+        if (!$isMember && !Auth::user()->isAdmin()) {
             return response()->json(['error' => 'You are not a member of this chat group.'], 403);
         }
         
@@ -140,6 +163,58 @@ class MessageController extends Controller
         }
         
         $message->delete();
+        
+        return response()->json(['success' => true]);
+    }
+    
+    /**
+     * Broadcast that the authenticated user is typing in a chat group.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\ChatGroup  $chatGroup
+     * @return \Illuminate\Http\Response
+     */
+    public function typing(Request $request, ChatGroup $chatGroup)
+    {
+        // Kiểm tra sử dụng trực tiếp SQL thay vì qua relationship
+        $isMember = DB::table('chat_group_members')
+            ->where('group_id', $chatGroup->id)
+            ->where('user_id', Auth::id())
+            ->exists();
+        
+        // Check if the user is a member of this group
+        if (!$isMember && !Auth::user()->isAdmin() && !Auth::user()->isContentUser()) {
+            return response()->json(['error' => 'You are not a member of this chat group.'], 403);
+        }
+        
+        // Broadcast event to channel
+        broadcast(new \App\Events\UserTypingEvent($chatGroup->id, Auth::id(), Auth::user()->name))->toOthers();
+        
+        return response()->json(['success' => true]);
+    }
+    
+    /**
+     * Broadcast that the authenticated user has stopped typing in a chat group.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\ChatGroup  $chatGroup
+     * @return \Illuminate\Http\Response
+     */
+    public function stopTyping(Request $request, ChatGroup $chatGroup)
+    {
+        // Kiểm tra sử dụng trực tiếp SQL thay vì qua relationship
+        $isMember = DB::table('chat_group_members')
+            ->where('group_id', $chatGroup->id)
+            ->where('user_id', Auth::id())
+            ->exists();
+        
+        // Check if the user is a member of this group
+        if (!$isMember && !Auth::user()->isAdmin() && !Auth::user()->isContentUser()) {
+            return response()->json(['error' => 'You are not a member of this chat group.'], 403);
+        }
+        
+        // Broadcast event to channel
+        broadcast(new \App\Events\UserStopTypingEvent($chatGroup->id, Auth::id(), Auth::user()->name))->toOthers();
         
         return response()->json(['success' => true]);
     }

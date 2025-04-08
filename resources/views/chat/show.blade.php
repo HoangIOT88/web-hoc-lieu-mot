@@ -311,11 +311,14 @@
             // Lắng nghe sự kiện tin nhắn mới
             channel.bind('new-message', function(data) {
                 console.log('Received message:', data);
-                // Thêm tin nhắn mới vào giao diện
-                appendMessage(data, false);
-                
-                // Cuộn xuống dưới cùng tùy theo trạng thái
-                scrollToBottom();
+                // Kiểm tra tin nhắn đã tồn tại chưa
+                if (!document.querySelector(`[data-message-id="${data.id}"]`)) {
+                    // Thêm tin nhắn mới vào giao diện
+                    appendMessage(data, false);
+                    
+                    // Cuộn xuống dưới cùng tùy theo trạng thái
+                    scrollToBottom();
+                }
             });
             
             // Lắng nghe sự kiện người dùng đang gõ
@@ -376,17 +379,19 @@
                 messageContent.value = '';
                 messageContent.style.height = '38px';
                 
-                // Append message
-                appendMessage({
-                    id: data.message.id,
-                    content: data.message.content,
-                    sender_id: data.sender.id,
-                    sender_name: data.sender.name,
-                    sent_at: data.message.sent_at
-                }, true);
-                
-                // Scroll to bottom
-                scrollToBottom();
+                // Append message (chỉ thêm nếu chưa tồn tại)
+                if (!document.querySelector(`[data-message-id="${data.message.id}"]`)) {
+                    appendMessage({
+                        id: data.message.id,
+                        content: data.message.content,
+                        sender_id: data.sender.id,
+                        sender_name: data.sender.name,
+                        sent_at: data.message.sent_at
+                    }, true);
+                    
+                    // Scroll to bottom
+                    scrollToBottom();
+                }
             })
             .catch(error => {
                 console.error('Error sending message:', error);
@@ -400,7 +405,7 @@
             const isMyMessage = isMine || message.sender_id === currentUserId;
             
             const messageHtml = `
-                <div class="message-item mb-3 ${isMyMessage ? 'text-end' : ''}">
+                <div class="message-item mb-3 ${isMyMessage ? 'text-end' : ''}" data-message-id="${message.id}">
                     <div class="d-inline-block message-bubble p-2 px-3 rounded-3 ${isMyMessage ? 'bg-primary text-white' : 'bg-light'}" 
                          style="max-width: 75%;">
                         ${!isMyMessage ? `<div class="fw-bold mb-1 small">${message.sender_name}</div>` : ''}

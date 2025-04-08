@@ -12,6 +12,7 @@ use App\Models\AdminReport;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class ReportController extends Controller
 {
@@ -105,17 +106,49 @@ class ReportController extends Controller
             ->whereBetween('created_at', [$startDate, $endDate])
             ->groupBy('role')
             ->get();
+
+        // Tạo file báo cáo trước
+        $filename = 'reports/user_stats_' . now()->format('Y-m-d_His') . '.csv';
+        $filePath = storage_path('app/public/' . $filename);
         
-        // Create report record
+        // Đảm bảo thư mục tồn tại
+        if (!file_exists(dirname($filePath))) {
+            mkdir(dirname($filePath), 0755, true);
+        }
+        
+        // Tạo file CSV đơn giản
+        $file = fopen($filePath, 'w');
+        
+        // Header
+        fputcsv($file, ['Report Type', 'User Statistics']);
+        fputcsv($file, ['Generated At', now()->format('Y-m-d H:i:s')]);
+        fputcsv($file, ['Period', $startDate->format('Y-m-d') . ' to ' . $endDate->format('Y-m-d')]);
+        fputcsv($file, []);
+        
+        // User growth
+        fputcsv($file, ['User Growth']);
+        fputcsv($file, ['Date', 'Number of New Users']);
+        foreach ($userGrowth as $growth) {
+            fputcsv($file, [$growth->date, $growth->count]);
+        }
+        fputcsv($file, []);
+        
+        // Users by role
+        fputcsv($file, ['Users by Role']);
+        fputcsv($file, ['Role', 'Count']);
+        foreach ($usersByRole as $role) {
+            fputcsv($file, [$role->role, $role->count]);
+        }
+        
+        fclose($file);
+        
+        // Create report record với file đã tạo
         $report = AdminReport::create([
             'generated_by_admin_id' => Auth::id(),
             'report_type' => 'USER_STATS',
-            'file_url' => null, // Will be updated after file generation
+            'file_url' => 'public/' . $filename,
             'generated_at' => now(),
         ]);
-        
-        // Generate PDF/Excel file (implementation would depend on the package you use)
-        // For this example, we'll just redirect back with the report ID
         
         return redirect()->route('admin.reports.show', $report)
             ->with('success', 'User statistics report generated successfully.');
@@ -156,11 +189,46 @@ class ReportController extends Controller
             ->take(10)
             ->get();
         
-        // Create report record
+        // Tạo file báo cáo
+        $filename = 'reports/course_stats_' . now()->format('Y-m-d_His') . '.csv';
+        $filePath = storage_path('app/public/' . $filename);
+        
+        // Đảm bảo thư mục tồn tại
+        if (!file_exists(dirname($filePath))) {
+            mkdir(dirname($filePath), 0755, true);
+        }
+        
+        // Tạo file CSV đơn giản
+        $file = fopen($filePath, 'w');
+        
+        // Header
+        fputcsv($file, ['Report Type', 'Course Statistics']);
+        fputcsv($file, ['Generated At', now()->format('Y-m-d H:i:s')]);
+        fputcsv($file, ['Period', $startDate->format('Y-m-d') . ' to ' . $endDate->format('Y-m-d')]);
+        fputcsv($file, []);
+        
+        // Course growth
+        fputcsv($file, ['Course Creation']);
+        fputcsv($file, ['Date', 'Number of New Courses']);
+        foreach ($courseGrowth as $growth) {
+            fputcsv($file, [$growth->date, $growth->count]);
+        }
+        fputcsv($file, []);
+        
+        // Popular courses
+        fputcsv($file, ['Most Popular Courses']);
+        fputcsv($file, ['Course ID', 'Course Name', 'Registrations']);
+        foreach ($popularCourses as $course) {
+            fputcsv($file, [$course->id, $course->name, $course->registration_count]);
+        }
+        
+        fclose($file);
+        
+        // Create report record with file URL
         $report = AdminReport::create([
             'generated_by_admin_id' => Auth::id(),
             'report_type' => 'COURSE_STATS',
-            'file_url' => null, // Will be updated after file generation
+            'file_url' => 'public/' . $filename,
             'generated_at' => now(),
         ]);
         
@@ -194,11 +262,38 @@ class ReportController extends Controller
             ->orderBy('date')
             ->get();
         
-        // Create report record
+        // Tạo file báo cáo
+        $filename = 'reports/activity_stats_' . now()->format('Y-m-d_His') . '.csv';
+        $filePath = storage_path('app/public/' . $filename);
+        
+        // Đảm bảo thư mục tồn tại
+        if (!file_exists(dirname($filePath))) {
+            mkdir(dirname($filePath), 0755, true);
+        }
+        
+        // Tạo file CSV đơn giản
+        $file = fopen($filePath, 'w');
+        
+        // Header
+        fputcsv($file, ['Report Type', 'Activity Statistics']);
+        fputcsv($file, ['Generated At', now()->format('Y-m-d H:i:s')]);
+        fputcsv($file, ['Period', $startDate->format('Y-m-d') . ' to ' . $endDate->format('Y-m-d')]);
+        fputcsv($file, []);
+        
+        // Submissions
+        fputcsv($file, ['Exercise Submissions']);
+        fputcsv($file, ['Date', 'Number of Submissions']);
+        foreach ($submissionStats as $stat) {
+            fputcsv($file, [$stat->date, $stat->count]);
+        }
+        
+        fclose($file);
+        
+        // Create report record with file URL
         $report = AdminReport::create([
             'generated_by_admin_id' => Auth::id(),
             'report_type' => 'ACTIVITY_STATS',
-            'file_url' => null, // Will be updated after file generation
+            'file_url' => 'public/' . $filename,
             'generated_at' => now(),
         ]);
         

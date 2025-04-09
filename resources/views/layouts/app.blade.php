@@ -81,7 +81,7 @@
                                             {{ __('Danh sách khóa học') }}
                                         </a>
                                         
-                                        <a class="dropdown-item" href="{{ route('lectures.index') }}">
+                                        <a class="dropdown-item" href="{{ url('lectures') }}">
                                             {{ __('Quản lý bài giảng') }}
                                         </a>
                                         
@@ -136,7 +136,7 @@
                                             {{ __('Quản lý khóa học') }}
                                         </a>
                                         
-                                        <a class="dropdown-item" href="{{ route('lectures.index') }}">
+                                        <a class="dropdown-item" href="{{ url('lectures') }}">
                                             {{ __('Quản lý bài giảng') }}
                                         </a>
                                         

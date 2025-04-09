@@ -13,9 +13,9 @@ class UserApproval extends Model
     /**
      * Status constants
      */
-    const STATUS_PENDING = 'PENDING';
-    const STATUS_APPROVED = 'APPROVED';
-    const STATUS_REJECTED = 'REJECTED';
+    const STATUS_PENDING = 'pending';
+    const STATUS_APPROVED = 'approved';
+    const STATUS_REJECTED = 'rejected';
     
     /**
      * The attributes that are mass assignable.
@@ -28,6 +28,7 @@ class UserApproval extends Model
         'status',
         'comment',
         'reviewed_at',
+        'course_id',
     ];
     
     /**
@@ -53,6 +54,14 @@ class UserApproval extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'content_user_id');
+    }
+    
+    /**
+     * Get the course associated with this approval
+     */
+    public function course(): BelongsTo
+    {
+        return $this->belongsTo(Course::class);
     }
     
     /**

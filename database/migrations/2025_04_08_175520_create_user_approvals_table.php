@@ -15,8 +15,9 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('content_user_id')->nullable()->constrained('users')->onDelete('set null');
-            $table->enum('status', ['PENDING', 'APPROVED', 'REJECTED'])->default('PENDING');
+            $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
             $table->text('comment')->nullable();
+            $table->foreignId('course_id')->nullable()->constrained()->onDelete('cascade');
             $table->timestamp('reviewed_at')->nullable();
             $table->timestamps();
         });
@@ -29,4 +30,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('user_approvals');
     }
-}; 
+};

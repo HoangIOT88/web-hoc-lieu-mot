@@ -8,7 +8,7 @@
                 <div class="card-header">{{ __('Tạo bài giảng mới') }} - {{ $course->name }}</div>
 
                 <div class="card-body">
-                    <form method="POST" action="{{ route('lectures.store', $course) }}" enctype="multipart/form-data">
+                    <form method="POST" action="{{ route('courses.lectures.store', $course) }}" enctype="multipart/form-data">
                         @csrf
 
                         <div class="mb-3">
@@ -43,7 +43,7 @@
                         </div>
 
                         <div class="d-flex justify-content-between">
-                            <a href="{{ route('lectures.index', $course) }}" class="btn btn-secondary">{{ __('Hủy') }}</a>
+                            <a href="{{ route('courses.lectures.index', $course) }}" class="btn btn-secondary">{{ __('Hủy') }}</a>
                             <button type="submit" class="btn btn-primary">{{ __('Tạo bài giảng') }}</button>
                         </div>
                     </form>

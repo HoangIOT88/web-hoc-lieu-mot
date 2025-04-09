@@ -10,7 +10,7 @@
                     <div>
                         <a href="{{ route('courses.show', $course) }}" class="btn btn-primary btn-sm">{{ __('Quay lại khóa học') }}</a>
                         @if(Auth::user()->isContentUser() && $course->content_user_id == Auth::id() || Auth::user()->isAdmin())
-                            <a href="{{ route('lectures.create', $course) }}" class="btn btn-success btn-sm">{{ __('Tạo bài giảng mới') }}</a>
+                            <a href="{{ route('courses.lectures.create', $course) }}" class="btn btn-success btn-sm">{{ __('Tạo bài giảng mới') }}</a>
                         @endif
                     </div>
                 </div>
@@ -51,10 +51,10 @@
                                             <td>{{ $lecture->uploaded_at->format('d/m/Y H:i:s') }}</td>
                                             <td>
                                                 <div class="btn-group">
-                                                    <a href="{{ route('lectures.show', [$course, $lecture]) }}" class="btn btn-primary btn-sm">{{ __('Xem') }}</a>
+                                                    <a href="{{ route('courses.lectures.show', [$course, $lecture]) }}" class="btn btn-primary btn-sm">{{ __('Xem') }}</a>
                                                     @if(Auth::user()->isContentUser() && $course->content_user_id == Auth::id() || Auth::user()->isAdmin())
-                                                        <a href="{{ route('lectures.edit', [$course, $lecture]) }}" class="btn btn-warning btn-sm">{{ __('Sửa') }}</a>
-                                                        <form action="{{ route('lectures.destroy', [$course, $lecture]) }}" method="POST" class="d-inline">
+                                                        <a href="{{ route('courses.lectures.edit', [$course, $lecture]) }}" class="btn btn-warning btn-sm">{{ __('Sửa') }}</a>
+                                                        <form action="{{ route('courses.lectures.destroy', [$course, $lecture]) }}" method="POST" class="d-inline">
                                                             @csrf
                                                             @method('DELETE')
                                                             <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('{{ __('Bạn có chắc chắn muốn xóa bài giảng này?') }}')">{{ __('Xóa') }}</button>

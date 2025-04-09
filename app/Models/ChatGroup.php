@@ -46,7 +46,7 @@ class ChatGroup extends Model
      */
     public function members(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'chat_group_members', 'group_id', 'user_id')
+        return $this->belongsToMany(User::class, 'chat_group_members', 'chat_group_id', 'user_id')
             ->withPivot('joined_at')
             ->withTimestamps();
     }
@@ -56,6 +56,6 @@ class ChatGroup extends Model
      */
     public function messages(): HasMany
     {
-        return $this->hasMany(Message::class, 'group_id');
+        return $this->hasMany(Message::class, 'chat_group_id');
     }
 }

@@ -7,9 +7,13 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span>{{ __('Tất cả bài tập') }}</span>
-                    @if(Auth::user()->isContentUser() || Auth::user()->isAdmin())
-                        <a href="{{ route('exercises.create') }}" class="btn btn-primary btn-sm">{{ __('Tạo bài tập mới') }}</a>
-                    @endif
+                    <div>
+                        @if(Auth::user()->isContentUser() || Auth::user()->isAdmin())
+                            <a href="{{ route('exercises.create') }}" class="btn btn-success btn-sm">
+                                {{ __('Tạo bài tập mới') }}
+                            </a>
+                        @endif
+                    </div>
                 </div>
 
                 <div class="card-body">
@@ -36,8 +40,8 @@
                                     <tr>
                                         <th>{{ __('Tiêu đề') }}</th>
                                         <th>{{ __('Khóa học') }}</th>
-                                        <th>{{ __('Hạn nộp') }}</th>
-                                        <th>{{ __('Đã nộp') }}</th>
+                                        <th>{{ __('Deadline') }}</th>
+                                        <th>{{ __('Ngày tạo') }}</th>
                                         <th>{{ __('Hành động') }}</th>
                                     </tr>
                                 </thead>
@@ -46,21 +50,25 @@
                                         <tr>
                                             <td>{{ $exercise->title }}</td>
                                             <td>{{ $exercise->course->name }}</td>
-                                            <td>{{ $exercise->deadline ? $exercise->deadline->format('d/m/Y H:i') : 'Không có hạn nộp' }}</td>
                                             <td>
-                                                @if(Auth::user()->hasSubmittedExercise($exercise->id))
-                                                    <span class="badge bg-success">Đã nộp</span>
+                                                @if ($exercise->deadline)
+                                                    {{ $exercise->deadline->format('d/m/Y H:i') }}
+                                                    @if (now()->gt($exercise->deadline))
+                                                        <span class="badge bg-danger">{{ __('Đã hết hạn') }}</span>
+                                                    @else
+                                                        <span class="badge bg-success">{{ __('Còn hạn') }}</span>
+                                                    @endif
                                                 @else
-                                                    <span class="badge bg-warning text-dark">Chưa nộp</span>
+                                                    <span class="text-muted">{{ __('Không có hạn chót') }}</span>
                                                 @endif
                                             </td>
+                                            <td>{{ $exercise->created_at->format('d/m/Y') }}</td>
                                             <td>
                                                 <div class="btn-group">
-                                                    <a href="{{ route('exercises.show', $exercise->id) }}" class="btn btn-primary btn-sm">{{ __('Xem') }}</a>
-                                                    
+                                                    <a href="{{ route('exercises.show', $exercise) }}" class="btn btn-primary btn-sm">{{ __('Xem') }}</a>
                                                     @if(Auth::user()->isContentUser() && $exercise->course->content_user_id == Auth::id() || Auth::user()->isAdmin())
-                                                        <a href="{{ route('exercises.edit', $exercise->id) }}" class="btn btn-warning btn-sm">{{ __('Sửa') }}</a>
-                                                        <form action="{{ route('exercises.destroy', $exercise->id) }}" method="POST" class="d-inline">
+                                                        <a href="{{ route('exercises.edit', $exercise) }}" class="btn btn-warning btn-sm">{{ __('Sửa') }}</a>
+                                                        <form action="{{ route('exercises.destroy', $exercise) }}" method="POST" class="d-inline">
                                                             @csrf
                                                             @method('DELETE')
                                                             <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('{{ __('Bạn có chắc chắn muốn xóa bài tập này?') }}')">{{ __('Xóa') }}</button>

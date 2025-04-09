@@ -33,16 +33,15 @@ class MessageController extends Controller
         \Log::info('Message store method called', [
             'chatGroup' => $chatGroup->id,
             'user' => Auth::id(),
-            'request' => $request->all()
+            'content' => $request->content ? substr($request->content, 0, 50) . '...' : null
         ]);
         
-        // Kiểm tra sử dụng trực tiếp SQL thay vì qua relationship, để đồng bộ với fix trước đó
+        // Kiểm tra quyền
         $isMember = DB::table('chat_group_members')
-            ->where('group_id', $chatGroup->id)
+            ->where('chat_group_id', $chatGroup->id)
             ->where('user_id', Auth::id())
             ->exists();
         
-        // Check if the user is a member of this group, an admin, or a content user  
         if (!$isMember && !Auth::user()->isAdmin() && !Auth::user()->isContentUser()) {
             return response()->json(['error' => 'You are not a member of this chat group.'], 403);
         }
@@ -51,37 +50,54 @@ class MessageController extends Controller
             'content' => 'required|string',
         ]);
         
+        // Tạo tin nhắn mới
         $message = Message::create([
-            'group_id' => $chatGroup->id,
+            'chat_group_id' => $chatGroup->id,
             'sender_id' => Auth::id(),
             'content' => $request->content,
             'sent_at' => now(),
         ]);
         
-        // Load the sender relationship
+        // Load relationship
         $message->load('sender');
         
-        // Kích hoạt event để broadcasting tin nhắn real-time
-        broadcast(new NewMessageEvent($message))->toOthers();
+        try {
+            \Log::info('Broadcasting new message event', [
+                'message_id' => $message->id, 
+                'sender' => Auth::user()->name
+            ]);
+            
+            // Broadcast sự kiện ngay lập tức
+            broadcast(new NewMessageEvent($message))->toOthers();
+            
+            \Log::info('Message broadcast completed', ['id' => $message->id]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to broadcast message', [
+                'message_id' => $message->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
         
-        // If AJAX request
+        // Trả về response
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'message' => [
                     'id' => $message->id,
                     'content' => $message->content,
                     'sender_id' => $message->sender_id,
-                    'sent_at' => $message->sent_at->format('Y-m-d H:i:s'),
+                    'sent_at' => $message->sent_at->format('h:i A'),
                 ],
                 'sender' => [
                     'id' => Auth::id(),
                     'name' => Auth::user()->name,
                 ],
+                'status' => 'success'
             ]);
         }
         
         return redirect()->route('chat-groups.show', $chatGroup)
-            ->with('success', 'Message sent successfully.');
+            ->with('success', 'Tin nhắn đã được gửi thành công.');
     }
     
     /**
@@ -96,7 +112,7 @@ class MessageController extends Controller
         
         // Kiểm tra sử dụng trực tiếp SQL thay vì qua relationship
         $isMember = DB::table('chat_group_members')
-            ->where('group_id', $chatGroup->id)
+            ->where('chat_group_id', $chatGroup->id)
             ->where('user_id', Auth::id())
             ->exists();
         
@@ -127,7 +143,7 @@ class MessageController extends Controller
     {
         // Kiểm tra sử dụng trực tiếp SQL thay vì qua relationship
         $isMember = DB::table('chat_group_members')
-            ->where('group_id', $chatGroup->id)
+            ->where('chat_group_id', $chatGroup->id)
             ->where('user_id', Auth::id())
             ->exists();
         
@@ -178,7 +194,7 @@ class MessageController extends Controller
     {
         // Kiểm tra sử dụng trực tiếp SQL thay vì qua relationship
         $isMember = DB::table('chat_group_members')
-            ->where('group_id', $chatGroup->id)
+            ->where('chat_group_id', $chatGroup->id)
             ->where('user_id', Auth::id())
             ->exists();
         
@@ -204,7 +220,7 @@ class MessageController extends Controller
     {
         // Kiểm tra sử dụng trực tiếp SQL thay vì qua relationship
         $isMember = DB::table('chat_group_members')
-            ->where('group_id', $chatGroup->id)
+            ->where('chat_group_id', $chatGroup->id)
             ->where('user_id', Auth::id())
             ->exists();
         

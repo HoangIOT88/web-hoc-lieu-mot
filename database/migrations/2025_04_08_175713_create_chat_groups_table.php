@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('name');
             $table->text('description')->nullable();
             $table->foreignId('created_by')->constrained('users')->onDelete('cascade');
+            $table->boolean('is_private')->default(false);
             $table->timestamps();
         });
     }
@@ -27,4 +28,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('chat_groups');
     }
-}; 
+};

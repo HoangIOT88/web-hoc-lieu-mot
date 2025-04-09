@@ -6,31 +6,31 @@ use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class UserStopTypingEvent implements ShouldBroadcast
+class UserStopTypingEvent implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $group_id;
+    public $chat_group_id;
     public $user_id;
     public $user_name;
 
     /**
      * Create a new event instance.
      *
-     * @param int $group_id
-     * @param int $user_id
-     * @param string $user_name
+     * @param int $chatGroupId
+     * @param int $userId
+     * @param string $userName
      * @return void
      */
-    public function __construct($group_id, $user_id, $user_name)
+    public function __construct($chatGroupId, $userId, $userName)
     {
-        $this->group_id = $group_id;
-        $this->user_id = $user_id;
-        $this->user_name = $user_name;
+        $this->chat_group_id = $chatGroupId;
+        $this->user_id = $userId;
+        $this->user_name = $userName;
     }
 
     /**
@@ -40,8 +40,15 @@ class UserStopTypingEvent implements ShouldBroadcast
      */
     public function broadcastOn(): array
     {
+        $channelName = 'chat-group.' . $this->chat_group_id;
+        
+        \Log::info('UserStopTypingEvent - Broadcasting on channel', [
+            'channel' => $channelName,
+            'user' => $this->user_name,
+        ]);
+        
         return [
-            new PrivateChannel('chat-group.' . $this->group_id),
+            new Channel($channelName),
         ];
     }
 
@@ -52,7 +59,7 @@ class UserStopTypingEvent implements ShouldBroadcast
      */
     public function broadcastAs()
     {
-        return 'stop-typing';
+        return 'user.stop_typing';
     }
 
     /**
@@ -63,7 +70,7 @@ class UserStopTypingEvent implements ShouldBroadcast
     public function broadcastWith()
     {
         return [
-            'group_id' => $this->group_id,
+            'chat_group_id' => $this->chat_group_id,
             'user_id' => $this->user_id,
             'user_name' => $this->user_name,
             'timestamp' => now()->toIso8601String(),

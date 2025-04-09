@@ -15,7 +15,7 @@ class ChatGroupMember extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'group_id',
+        'chat_group_id',
         'user_id',
         'joined_at',
     ];
@@ -30,15 +30,15 @@ class ChatGroupMember extends Model
     ];
     
     /**
-     * Get the chat group that this membership belongs to
+     * Get the chat group that the membership is for.
      */
     public function chatGroup()
     {
-        return $this->belongsTo(ChatGroup::class, 'group_id');
+        return $this->belongsTo(ChatGroup::class, 'chat_group_id');
     }
     
     /**
-     * Get the user for this membership
+     * Get the user that the membership is for.
      */
     public function user()
     {

@@ -16,13 +16,10 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('exercise_id')->constrained()->onDelete('cascade');
             $table->text('answer_content');
-            $table->timestamp('submitted_at')->useCurrent();
-            $table->boolean('is_correct')->nullable();
-            $table->text('feedback')->nullable();
-            $table->timestamp('graded_at')->nullable();
+            $table->timestamp('submitted_at');
             $table->timestamps();
             
-            // Add a unique constraint to prevent duplicate answers for the same exercise by the same user
+            // Đảm bảo rằng một người dùng chỉ có thể trả lời một bài tập một lần
             $table->unique(['user_id', 'exercise_id']);
         });
     }

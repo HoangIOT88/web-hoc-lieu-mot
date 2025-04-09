@@ -73,7 +73,7 @@ class ChatController extends Controller
         
         // Create message
         Message::create([
-            'group_id' => $chatGroup->id,
+            'chat_group_id' => $chatGroup->id,
             'sender_id' => Auth::id(),
             'content' => $request->content,
             'sent_at' => now(),

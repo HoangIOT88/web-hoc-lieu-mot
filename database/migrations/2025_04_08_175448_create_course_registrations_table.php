@@ -11,14 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('lectures', function (Blueprint $table) {
+        Schema::create('course_registrations', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('course_id')->constrained()->onDelete('cascade');
-            $table->string('title');
-            $table->text('description')->nullable();
-            $table->string('file_url');
-            $table->timestamp('uploaded_at');
+            $table->timestamp('registered_at');
             $table->timestamps();
+            
+            // Đảm bảo rằng một người dùng chỉ có thể đăng ký một khóa học một lần
+            $table->unique(['user_id', 'course_id']);
         });
     }
 
@@ -27,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('lectures');
+        Schema::dropIfExists('course_registrations');
     }
-}; 
+};

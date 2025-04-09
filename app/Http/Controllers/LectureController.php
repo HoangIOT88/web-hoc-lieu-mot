@@ -99,7 +99,7 @@ class LectureController extends Controller
             'uploaded_at' => now(),
         ]);
         
-        return redirect()->route('lectures.index', $course)
+        return redirect()->route('courses.lectures.index', $course)
             ->with('success', 'Bài giảng đã được tạo thành công.');
     }
     
@@ -114,7 +114,7 @@ class LectureController extends Controller
     {
         // Check if lecture belongs to the course
         if ($lecture->course_id !== $course->id) {
-            return redirect()->route('lectures.index', $course)
+            return redirect()->route('courses.lectures.index', $course)
                 ->with('error', 'Bài giảng không thuộc khóa học này.');
         }
         
@@ -142,7 +142,7 @@ class LectureController extends Controller
     {
         // Check if lecture belongs to the course
         if ($lecture->course_id !== $course->id) {
-            return redirect()->route('lectures.index', $course)
+            return redirect()->route('courses.lectures.index', $course)
                 ->with('error', 'Bài giảng không thuộc khóa học này.');
         }
         
@@ -151,7 +151,7 @@ class LectureController extends Controller
         $isAdmin = Auth::user()->isAdmin();
         
         if (!$isContentUser && !$isAdmin) {
-            return redirect()->route('lectures.index', $course)
+            return redirect()->route('courses.lectures.index', $course)
                 ->with('error', 'Bạn không có quyền sửa bài giảng của khóa học này.');
         }
         
@@ -170,7 +170,7 @@ class LectureController extends Controller
     {
         // Check if lecture belongs to the course
         if ($lecture->course_id !== $course->id) {
-            return redirect()->route('lectures.index', $course)
+            return redirect()->route('courses.lectures.index', $course)
                 ->with('error', 'Bài giảng không thuộc khóa học này.');
         }
         
@@ -179,7 +179,7 @@ class LectureController extends Controller
         $isAdmin = Auth::user()->isAdmin();
         
         if (!$isContentUser && !$isAdmin) {
-            return redirect()->route('lectures.index', $course)
+            return redirect()->route('courses.lectures.index', $course)
                 ->with('error', 'Bạn không có quyền sửa bài giảng của khóa học này.');
         }
         
@@ -207,7 +207,7 @@ class LectureController extends Controller
         
         $lecture->save();
         
-        return redirect()->route('lectures.index', $course)
+        return redirect()->route('courses.lectures.index', $course)
             ->with('success', 'Bài giảng đã được cập nhật thành công.');
     }
     
@@ -222,7 +222,7 @@ class LectureController extends Controller
     {
         // Check if lecture belongs to the course
         if ($lecture->course_id !== $course->id) {
-            return redirect()->route('lectures.index', $course)
+            return redirect()->route('courses.lectures.index', $course)
                 ->with('error', 'Bài giảng không thuộc khóa học này.');
         }
         
@@ -231,7 +231,7 @@ class LectureController extends Controller
         $isAdmin = Auth::user()->isAdmin();
         
         if (!$isContentUser && !$isAdmin) {
-            return redirect()->route('lectures.index', $course)
+            return redirect()->route('courses.lectures.index', $course)
                 ->with('error', 'Bạn không có quyền xóa bài giảng của khóa học này.');
         }
         
@@ -241,7 +241,7 @@ class LectureController extends Controller
         // Delete lecture
         $lecture->delete();
         
-        return redirect()->route('lectures.index', $course)
+        return redirect()->route('courses.lectures.index', $course)
             ->with('success', 'Bài giảng đã được xóa thành công.');
     }
     

@@ -16,7 +16,7 @@ class Message extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'group_id',
+        'chat_group_id',
         'sender_id',
         'content',
         'sent_at',
@@ -36,7 +36,7 @@ class Message extends Model
      */
     public function chatGroup(): BelongsTo
     {
-        return $this->belongsTo(ChatGroup::class, 'group_id');
+        return $this->belongsTo(ChatGroup::class, 'chat_group_id');
     }
     
     /**

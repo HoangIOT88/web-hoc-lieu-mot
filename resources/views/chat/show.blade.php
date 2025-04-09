@@ -3,6 +3,7 @@
 @section('title', $chatGroup->name . ' - Chat')
 
 @section('styles')
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
 <style>
     .chat-container {
         height: calc(100vh - 300px);
@@ -44,6 +45,46 @@
         height: calc(100vh - 300px);
         min-height: 400px;
         overflow-y: auto;
+    }
+    
+    /* New message animation */
+    @keyframes newMessageHighlight {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    .message-item.new-message {
+        animation: newMessageHighlight 0.5s ease-in-out;
+    }
+    
+    /* Scroll-to-bottom button */
+    .scroll-bottom-btn {
+        position: absolute;
+        bottom: 80px;
+        right: 20px;
+        z-index: 1000;
+        opacity: 0.8;
+        transition: opacity 0.3s;
+    }
+    
+    .scroll-bottom-btn:hover {
+        opacity: 1;
+    }
+    
+    /* Unread messages indicator */
+    .new-messages-indicator {
+        background-color: rgba(40, 167, 69, 0.9);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 4px;
+        position: absolute;
+        bottom: 70px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: none;
+        z-index: 900;
+        cursor: pointer;
     }
     
     /* Custom scrollbar */
@@ -137,7 +178,7 @@
                     <div id="messages-container" class="flex-grow-1 p-3 overflow-auto">
                         <div id="message-list">
                             @forelse($messages as $message)
-                                <div class="message-item mb-3 {{ $message->sender_id === auth()->id() ? 'text-end' : '' }}">
+                                <div class="message-item mb-3 {{ $message->sender_id === auth()->id() ? 'text-end' : '' }}" data-message-id="{{ $message->id }}">
                                     <div class="d-inline-block message-bubble p-2 px-3 rounded-3 {{ $message->sender_id === auth()->id() ? 'bg-primary text-white' : 'bg-light' }}" 
                                          style="max-width: 75%;">
                                         @if($message->sender_id !== auth()->id())
@@ -156,6 +197,11 @@
                                 </div>
                             @endforelse
                         </div>
+                    </div>
+                    
+                    <!-- New messages indicator -->
+                    <div id="new-messages-indicator" class="new-messages-indicator">
+                        <i class="fas fa-arrow-down me-1"></i> Tin nhắn mới
                     </div>
                     
                     <!-- Message Input -->
@@ -181,180 +227,201 @@
 @endsection
 
 @section('scripts')
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
 <script>
+    // Debug helpers
+    function debugInfo(message, data) {
+        console.log('%c' + message, 'background: #0066ff; color: white; padding: 2px 5px; border-radius: 3px;', data || '');
+    }
+    
+    function debugError(message, data) {
+        console.error('%c' + message, 'background: #ff0033; color: white; padding: 2px 5px; border-radius: 3px;', data || '');
+    }
+    
+    function debugSuccess(message, data) {
+        console.log('%c' + message, 'background: #00cc66; color: white; padding: 2px 5px; border-radius: 3px;', data || '');
+    }
+    
+    // Thiết lập AJAX CSRF token
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+    });
+    
+    // Initialize script variables
+    const chatGroupId = {{ $chatGroup->id }};
+    const currentUserId = {{ auth()->id() }};
+    const pusherKey = '{{ config('broadcasting.connections.pusher.key') }}';
+    const pusherCluster = '{{ config('broadcasting.connections.pusher.options.cluster') }}';
+    const csrfToken = '{{ csrf_token() }}';
+    
+    // Chat initialization
     document.addEventListener('DOMContentLoaded', function() {
-        const messagesContainer = document.getElementById('messages-container');
+        debugInfo('Initializing chat interface');
+        
         const messageList = document.getElementById('message-list');
+        const messagesContainer = document.getElementById('messages-container');
+        const newMessagesIndicator = document.getElementById('new-messages-indicator');
         const messageForm = document.getElementById('messageForm');
         const messageContent = document.getElementById('messageContent');
         
-        // Biến để kiểm tra người dùng có đang cuộn lên để xem tin nhắn cũ không
-        let isScrolledUp = false;
-        let hasNewMessages = false;
+        // Biến theo dõi số tin nhắn mới chưa đọc
+        let unreadMessagesCount = 0;
         
-        // Auto-resize textarea and typing indicator
-        let typingTimer;
-        const typingInterval = 2000; // 2 giây
+        // Function to scroll to bottom of messages
+        function scrollToBottom() {
+            debugInfo('Scrolling to bottom', messagesContainer.scrollHeight);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight + 5000;
+            
+            // Reset unread counter and hide indicator
+            unreadMessagesCount = 0;
+            newMessagesIndicator.style.display = 'none';
+        }
         
-        messageContent.addEventListener('input', function() {
-            // Auto-resize
-            this.style.height = '38px';
-            this.style.height = Math.min(this.scrollHeight, 100) + 'px';
-            
-            // Emit typing event
-            clearTimeout(typingTimer);
-            
-            // Gửi sự kiện typing nếu có nội dung
-            if (this.value.trim().length > 0) {
-                // Gửi yêu cầu để broadcast sự kiện typing
-                fetch('{{ route("chat.typing", $chatGroup->id) }}', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    }
-                }).catch(err => console.error('Error sending typing indicator:', err));
-            }
-            
-            // Dừng typing sau khoảng thời gian
-            typingTimer = setTimeout(() => {
-                // Gửi yêu cầu để dừng broadcast sự kiện typing nếu người dùng dừng gõ
-                fetch('{{ route("chat.stop-typing", $chatGroup->id) }}', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    }
-                }).catch(err => console.error('Error sending stop typing indicator:', err));
-            }, typingInterval);
-        });
+        // Scroll to bottom on load
+        scrollToBottom();
         
-        // Theo dõi vị trí cuộn
-        messagesContainer.addEventListener('scroll', function() {
-            const atBottom = (messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight) < 50;
-            isScrolledUp = !atBottom;
-            
-            // Nếu người dùng cuộn xuống dưới và có tin nhắn mới, xóa thông báo tin nhắn mới
-            if (atBottom && hasNewMessages) {
-                hasNewMessages = false;
-                // Xóa thông báo nếu có
-                const newMessageNotification = document.getElementById('new-message-notification');
-                if (newMessageNotification) {
-                    newMessageNotification.remove();
+        // Initialize Pusher connection
+        if (!pusherKey || !pusherCluster) {
+            debugError('Pusher configuration missing', { pusherKey, pusherCluster });
+            return;
+        }
+        
+        debugInfo('Initializing Pusher with', { key: pusherKey, cluster: pusherCluster });
+        
+        // Create Pusher instance
+        const pusher = new Pusher(pusherKey, {
+            cluster: pusherCluster,
+            authEndpoint: '/broadcasting/auth',
+            auth: {
+                headers: {
+                    'X-CSRF-Token': csrfToken,
                 }
             }
         });
         
-        // Scroll to bottom of messages
-        const scrollToBottom = (force = false) => {
-            if (force || !isScrolledUp) {
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            } else if (!document.getElementById('new-message-notification')) {
-                // Nếu người dùng đang cuộn lên và không có thông báo, hiển thị thông báo tin nhắn mới
-                hasNewMessages = true;
-                const notification = document.createElement('div');
-                notification.id = 'new-message-notification';
-                notification.className = 'position-absolute bottom-0 start-50 translate-middle-x mb-3 bg-primary text-white px-3 py-2 rounded-pill shadow-sm';
-                notification.style.zIndex = '100';
-                notification.innerHTML = 'Tin nhắn mới <i class="fas fa-arrow-down ms-1"></i>';
-                notification.style.cursor = 'pointer';
-                notification.onclick = () => scrollToBottom(true);
-                messagesContainer.parentNode.appendChild(notification);
-            }
-        };
+        // Set up connection event handlers
+        pusher.connection.bind('connected', function() {
+            debugSuccess('📡 Connected to Pusher', pusher.connection.socket_id);
+            subscribeToChannel();
+        });
         
-        // Gọi scrollToBottom() ngay khi load trang
-        scrollToBottom(true);
+        pusher.connection.bind('disconnected', function() {
+            debugError('❌ Disconnected from Pusher');
+        });
         
-        // Khởi tạo Pusher
-        const pusherKey = '{{ config("broadcasting.connections.pusher.key") }}';
-        const pusherCluster = '{{ config("broadcasting.connections.pusher.options.cluster") }}';
+        pusher.connection.bind('error', function(err) {
+            debugError('Pusher connection error', err);
+        });
         
-        if (pusherKey) {
-            const pusher = new Pusher(pusherKey, {
-                cluster: pusherCluster,
-                encrypted: true,
-                authEndpoint: '/broadcasting/auth',
-                auth: {
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    },
-                }
-            });
+        // Subscribe to chat channel
+        function subscribeToChannel() {
+            const channelName = 'chat-group.' + chatGroupId;
+            debugInfo('Subscribing to channel', channelName);
             
-            // Đăng ký kênh riêng tư của nhóm chat
-            const channel = pusher.subscribe('private-chat-group.{{ $chatGroup->id }}');
+            const channel = pusher.subscribe(channelName);
             
-            // Theo dõi trạng thái kết nối
-            pusher.connection.bind('state_change', function(states) {
-                console.log('Pusher connection state:', states.current);
-            });
-
-            // Theo dõi lỗi
-            pusher.connection.bind('error', function(err) {
-                console.error('Pusher connection error:', err);
-            });
-
-            // Theo dõi thành công
-            channel.bind('subscription_succeeded', function() {
-                console.log('Successfully subscribed to channel');
-            });
-
-            // Theo dõi lỗi kênh
-            channel.bind('subscription_error', function(status) {
-                console.error('Error subscribing to channel:', status);
-            });
-            
-            // Lắng nghe sự kiện tin nhắn mới
-            channel.bind('new-message', function(data) {
-                console.log('Received message:', data);
-                // Kiểm tra tin nhắn đã tồn tại chưa
-                if (!document.querySelector(`[data-message-id="${data.id}"]`)) {
-                    // Thêm tin nhắn mới vào giao diện
-                    appendMessage(data, false);
-                    
-                    // Cuộn xuống dưới cùng tùy theo trạng thái
-                    scrollToBottom();
-                }
-            });
-            
-            // Lắng nghe sự kiện người dùng đang gõ
-            channel.bind('typing', function(data) {
-                console.log('User typing:', data);
-                const typingIndicator = document.getElementById('typing-indicator');
-                const typingName = typingIndicator.querySelector('.typing-name');
+            // Handle subscription success
+            channel.bind('pusher:subscription_succeeded', function() {
+                debugSuccess('✅ Successfully subscribed to channel', channelName);
                 
-                // Không hiển thị typing nếu là chính mình
-                if (data.user_id == {{ Auth::id() }}) {
-                    return;
-                }
+                // Debug event binding
+                debugInfo('Setting up event listeners on channel');
                 
-                typingName.textContent = data.user_name;
-                typingIndicator.style.display = 'block';
+                // Listen for new messages
+                channel.bind('message.new', handleNewMessage);
+                
+                // Listen for typing indicators
+                channel.bind('user.typing', handleUserTyping);
+                channel.bind('user.stop_typing', handleUserStopTyping);
             });
             
-            // Lắng nghe sự kiện người dùng dừng gõ
-            channel.bind('stop-typing', function(data) {
-                console.log('User stopped typing:', data);
-                const typingIndicator = document.getElementById('typing-indicator');
-                
-                // Nếu không có người dùng nào đang gõ nữa
-                if (data.user_id != {{ Auth::id() }}) {
-                    typingIndicator.style.display = 'none';
-                }
+            // Handle subscription error
+            channel.bind('pusher:subscription_error', function(error) {
+                debugError('❌ Failed to subscribe to channel', { channel: channelName, error });
             });
         }
         
-        // Send message
+        // Handle incoming messages
+        function handleNewMessage(data) {
+            debugSuccess('📨 Received new message', data);
+            
+            // Validate message data
+            if (!data || !data.id || !data.content) {
+                debugError('❌ Invalid message data received', data);
+                return;
+            }
+            
+            // Check for duplicate messages
+            if (document.querySelector(`[data-message-id="${data.id}"]`)) {
+                debugInfo('📝 Message already exists in DOM, skipping', data.id);
+                return;
+            }
+            
+            // Add message to DOM
+            appendMessage(data);
+            
+            // Determine if we should auto-scroll
+            setTimeout(function() {
+                const isNearBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 150;
+                
+                if (isNearBottom) {
+                    debugInfo('User is near bottom, auto-scrolling');
+                    scrollToBottom();
+                } else {
+                    // Update unread counter
+                    unreadMessagesCount++;
+                    
+                    // Show new message indicator
+                    newMessagesIndicator.textContent = `${unreadMessagesCount} tin nhắn mới`;
+                    newMessagesIndicator.style.display = 'block';
+                    
+                    // Add animation
+                    newMessagesIndicator.classList.add('animate__animated', 'animate__pulse');
+                    setTimeout(() => {
+                        newMessagesIndicator.classList.remove('animate__animated', 'animate__pulse');
+                    }, 1000);
+                    
+                    debugInfo('User is scrolled up, showing indicator', { unreadCount: unreadMessagesCount });
+                }
+            }, 100);
+        }
+        
+        // Handle typing indicator
+        function handleUserTyping(data) {
+            debugInfo('User typing', data);
+            if (data.user_id !== currentUserId) {
+                showTypingIndicator(data.user_name);
+            }
+        }
+        
+        // Handle stop typing
+        function handleUserStopTyping(data) {
+            debugInfo('User stopped typing', data);
+            if (data.user_id !== currentUserId) {
+                hideTypingIndicator();
+            }
+        }
+        
+        // Send message handler
         messageForm.addEventListener('submit', function(e) {
             e.preventDefault();
             
-            if (!messageContent.value.trim()) {
+            const content = messageContent.value.trim();
+            if (!content) {
                 return;
             }
+            
+            // Disable submit button
+            const submitButton = this.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = true;
+            }
+            
+            // Send the message
+            debugInfo('Sending message', { content: content.substring(0, 50) + (content.length > 50 ? '...' : '') });
             
             const formData = new FormData(this);
             const url = this.getAttribute('action');
@@ -365,12 +432,12 @@
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    'X-CSRF-TOKEN': csrfToken
                 }
             })
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    throw new Error(`Network response error: ${response.status}`);
                 }
                 return response.json();
             })
@@ -379,36 +446,91 @@
                 messageContent.value = '';
                 messageContent.style.height = '38px';
                 
-                // Append message (chỉ thêm nếu chưa tồn tại)
+                // Debug response
+                debugSuccess('Server response', data);
+                
+                // Add message to DOM
                 if (!document.querySelector(`[data-message-id="${data.message.id}"]`)) {
-                    appendMessage({
+                    const messageData = {
                         id: data.message.id,
                         content: data.message.content,
                         sender_id: data.sender.id,
                         sender_name: data.sender.name,
                         sent_at: data.message.sent_at
-                    }, true);
+                    };
+                    
+                    debugInfo('Adding own message to DOM', messageData);
+                    appendMessage(messageData, true);
                     
                     // Scroll to bottom
                     scrollToBottom();
                 }
             })
             .catch(error => {
-                console.error('Error sending message:', error);
+                debugError('Error sending message', error);
                 alert('Có lỗi xảy ra khi gửi tin nhắn. Vui lòng thử lại!');
+            })
+            .finally(() => {
+                // Re-enable submit button
+                if (submitButton) {
+                    submitButton.disabled = false;
+                }
             });
         });
         
-        // Hàm thêm tin nhắn vào giao diện
+        // Auto-resize textarea
+        messageContent.addEventListener('input', function() {
+            this.style.height = '38px';
+            this.style.height = (this.scrollHeight) + 'px';
+            
+            // Handle typing indicators
+            handleTypingEvent();
+        });
+        
+        // Typing indicator logic
+        let typingTimer;
+        function handleTypingEvent() {
+            clearTimeout(typingTimer);
+            
+            // Only send typing event if connected
+            if (pusher && pusher.connection.state === 'connected') {
+                sendTypingEvent(true);
+                
+                // Set timeout to stop typing
+                typingTimer = setTimeout(function() {
+                    sendTypingEvent(false);
+                }, 3000);
+            }
+        }
+        
+        // Send typing status to server
+        function sendTypingEvent(isTyping) {
+            const endpoint = isTyping ? 
+                `/chat-groups/${chatGroupId}/typing` : 
+                `/chat-groups/${chatGroupId}/stop-typing`;
+                
+            fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            }).catch(error => {
+                debugError(`Error sending ${isTyping ? 'typing' : 'stop typing'} event`, error);
+            });
+        }
+        
+        // Append message to chat
         function appendMessage(message, isMine) {
-            const currentUserId = {{ Auth::id() }};
+            debugInfo('Appending message to DOM', message);
             const isMyMessage = isMine || message.sender_id === currentUserId;
             
             const messageHtml = `
                 <div class="message-item mb-3 ${isMyMessage ? 'text-end' : ''}" data-message-id="${message.id}">
                     <div class="d-inline-block message-bubble p-2 px-3 rounded-3 ${isMyMessage ? 'bg-primary text-white' : 'bg-light'}" 
                          style="max-width: 75%;">
-                        ${!isMyMessage ? `<div class="fw-bold mb-1 small">${message.sender_name}</div>` : ''}
+                        ${!isMyMessage ? `<div class="fw-bold mb-1 small">${message.sender_name || 'Unknown User'}</div>` : ''}
                         <div class="message-content">${message.content}</div>
                         <div class="message-time small ${isMyMessage ? 'text-white-50' : 'text-muted'} mt-1">
                             ${message.sent_at}
@@ -417,8 +539,96 @@
                 </div>
             `;
             
+            // Add to DOM
             messageList.insertAdjacentHTML('beforeend', messageHtml);
+            
+            // Highlight new message
+            const newMessageElement = document.querySelector(`[data-message-id="${message.id}"]`);
+            if (newMessageElement) {
+                newMessageElement.classList.add('animate__animated', 'animate__fadeIn');
+                setTimeout(() => {
+                    newMessageElement.classList.remove('animate__animated', 'animate__fadeIn');
+                }, 2000);
+            }
+            
+            // Auto-scroll for own messages
+            if (isMine) {
+                scrollToBottom();
+            }
         }
+        
+        // Typing indicator UI functions
+        function showTypingIndicator(userName) {
+            const typingIndicator = document.getElementById('typing-indicator');
+            const typingName = typingIndicator.querySelector('.typing-name');
+            
+            if (typingName) {
+                typingName.textContent = userName;
+            }
+            
+            typingIndicator.style.display = 'block';
+            
+            // Auto-hide after timeout
+            setTimeout(function() {
+                hideTypingIndicator();
+            }, 3000);
+        }
+        
+        function hideTypingIndicator() {
+            const typingIndicator = document.getElementById('typing-indicator');
+            typingIndicator.style.display = 'none';
+        }
+        
+        // Handle scroll events
+        messagesContainer.addEventListener('scroll', function() {
+            // Save scroll position
+            localStorage.setItem('chatScrollPosition-' + chatGroupId, messagesContainer.scrollTop);
+            
+            // Update UI based on scroll position
+            const isNearBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 100;
+            
+            if (isNearBottom) {
+                // Reset unread counter when scrolled to bottom
+                unreadMessagesCount = 0;
+                newMessagesIndicator.style.display = 'none';
+            }
+            
+            // Toggle scroll button visibility
+            scrollButton.style.display = isNearBottom ? 'none' : 'block';
+        });
+        
+        // Restore scroll position or scroll to bottom
+        const savedScrollPosition = localStorage.getItem('chatScrollPosition-' + chatGroupId);
+        if (savedScrollPosition) {
+            messagesContainer.scrollTop = parseInt(savedScrollPosition);
+        } else {
+            scrollToBottom();
+        }
+        
+        // New message indicator click handler
+        newMessagesIndicator.addEventListener('click', function() {
+            scrollToBottom();
+        });
+        
+        // Add scroll-to-bottom button
+        const scrollButton = document.createElement('button');
+        scrollButton.className = 'btn btn-sm btn-primary rounded-circle scroll-bottom-btn';
+        scrollButton.innerHTML = '<i class="fas fa-arrow-down"></i>';
+        scrollButton.style.display = 'none';
+        
+        document.querySelector('.card-body').appendChild(scrollButton);
+        
+        scrollButton.addEventListener('click', function() {
+            scrollToBottom();
+        });
+        
+        // Check connection periodically
+        setInterval(function() {
+            if (pusher && pusher.connection.state !== 'connected') {
+                debugInfo('Connection check - current state:', pusher.connection.state);
+                pusher.connect();
+            }
+        }, 5000);
     });
 </script>
-@endsection 
+@endsection

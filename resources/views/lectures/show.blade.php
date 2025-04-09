@@ -8,10 +8,10 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span>{{ $lecture->title }}</span>
                     <div>
-                        <a href="{{ route('lectures.index', $course) }}" class="btn btn-primary btn-sm">{{ __('Quay lại danh sách') }}</a>
+                        <a href="{{ route('courses.lectures.index', $course) }}" class="btn btn-primary btn-sm">{{ __('Quay lại danh sách') }}</a>
                         @if(Auth::user()->isContentUser() && $course->content_user_id == Auth::id() || Auth::user()->isAdmin())
-                            <a href="{{ route('lectures.edit', [$course, $lecture]) }}" class="btn btn-warning btn-sm">{{ __('Sửa') }}</a>
-                            <form action="{{ route('lectures.destroy', [$course, $lecture]) }}" method="POST" class="d-inline">
+                            <a href="{{ route('courses.lectures.edit', [$course, $lecture]) }}" class="btn btn-warning btn-sm">{{ __('Sửa') }}</a>
+                            <form action="{{ route('courses.lectures.destroy', [$course, $lecture]) }}" method="POST" class="d-inline">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('{{ __('Bạn có chắc chắn muốn xóa bài giảng này?') }}')">{{ __('Xóa') }}</button>

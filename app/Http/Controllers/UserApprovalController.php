@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Course;
 use App\Models\UserApproval;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,104 +22,134 @@ class UserApprovalController extends Controller
     }
     
     /**
-     * Display a listing of the users needing approval.
+     * Display a listing of the course registration requests.
      *
      * @return \Illuminate\Http\Response
      */
     public function index()
     {
-        // Check if user is content user or admin
+        // Kiểm tra quyền truy cập
         if (!Auth::user()->isContentUser() && !Auth::user()->isAdmin()) {
             return redirect()->route('home')->with('error', 'Bạn không có quyền truy cập trang này.');
         }
         
-        // Get all users with pending approval
-        $pendingUsers = User::whereHas('userApproval', function($query) {
-            $query->where('status', UserApproval::STATUS_PENDING);
-        })->orWhereDoesntHave('userApproval')
-          ->where('role', 'user')
-          ->get();
+        if (Auth::user()->isAdmin()) {
+            // Admin có thể xem tất cả các yêu cầu
+            $pendingApprovals = UserApproval::with(['user', 'course'])
+                ->where('status', UserApproval::STATUS_PENDING)
+                ->latest()
+                ->get();
+        } else {
+            // Content user chỉ xem các yêu cầu liên quan đến khóa học của họ
+            $pendingApprovals = UserApproval::with(['user', 'course'])
+                ->whereHas('course', function($query) {
+                    $query->where('content_user_id', Auth::id());
+                })
+                ->where('status', UserApproval::STATUS_PENDING)
+                ->latest()
+                ->get();
+        }
         
-        return view('user-approvals.index', compact('pendingUsers'));
+        return view('user-approvals.index', compact('pendingApprovals'));
     }
     
     /**
-     * Approve a user
+     * Display the detail of a course registration request.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\User  $user
+     * @param  \App\Models\UserApproval  $approval
      * @return \Illuminate\Http\Response
      */
-    public function approve(Request $request, User $user)
+    public function show(UserApproval $approval)
     {
-        // Validate the request
+        // Kiểm tra quyền truy cập
+        if (!Auth::user()->isContentUser() && !Auth::user()->isAdmin()) {
+            return redirect()->route('home')->with('error', 'Bạn không có quyền truy cập trang này.');
+        }
+        
+        // Kiểm tra xem content user có quyền xem approval này không
+        $canView = Auth::user()->isAdmin() || 
+                  (Auth::user()->isContentUser() && $approval->course->content_user_id == Auth::id());
+        
+        if (!$canView) {
+            return redirect()->route('user-approvals.index')
+                ->with('error', 'Bạn không có quyền xem chi tiết yêu cầu này.');
+        }
+        
+        return view('user-approvals.show', compact('approval'));
+    }
+    
+    /**
+     * Approve a user registration request
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\UserApproval  $approval
+     * @return \Illuminate\Http\Response
+     */
+    public function approve(Request $request, UserApproval $approval)
+    {
+        // Kiểm tra quyền - chỉ admin hoặc content user quản lý khóa học mới có thể duyệt
+        $canApprove = Auth::user()->isAdmin() || 
+                     (Auth::user()->isContentUser() && $approval->course->content_user_id == Auth::id());
+        
+        if (!$canApprove) {
+            return redirect()->route('user-approvals.index')
+                ->with('error', 'Bạn không có quyền duyệt yêu cầu này.');
+        }
+        
+        // Validate request
         $request->validate([
             'comment' => 'nullable|string',
         ]);
         
-        // Check if user already has an approval record
-        $approval = $user->userApproval;
+        // Cập nhật trạng thái duyệt
+        $approval->update([
+            'content_user_id' => Auth::id(),
+            'status' => UserApproval::STATUS_APPROVED,
+            'comment' => $request->comment,
+            'reviewed_at' => now(),
+        ]);
         
-        if ($approval) {
-            // Update existing approval
-            $approval->update([
-                'content_user_id' => Auth::id(),
-                'status' => UserApproval::STATUS_APPROVED,
-                'comment' => $request->comment,
-                'reviewed_at' => now(),
-            ]);
-        } else {
-            // Create new approval
-            $approval = UserApproval::create([
-                'user_id' => $user->id,
-                'content_user_id' => Auth::id(),
-                'status' => UserApproval::STATUS_APPROVED,
-                'comment' => $request->comment,
-                'reviewed_at' => now(),
-            ]);
-        }
+        // Đăng ký người dùng vào khóa học
+        $approval->user->registeredCourses()->attach($approval->course_id, [
+            'registered_at' => now()
+        ]);
         
         return redirect()->route('user-approvals.index')
-            ->with('success', 'Người dùng đã được duyệt thành công.');
+            ->with('success', 'Đã duyệt yêu cầu đăng ký khóa học thành công.');
     }
     
     /**
-     * Reject a user
+     * Reject a user registration request
      *
      * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\User  $user
+     * @param  \App\Models\UserApproval  $approval
      * @return \Illuminate\Http\Response
      */
-    public function reject(Request $request, User $user)
+    public function reject(Request $request, UserApproval $approval)
     {
-        // Validate the request
+        // Kiểm tra quyền - chỉ admin hoặc content user quản lý khóa học mới có thể từ chối
+        $canReject = Auth::user()->isAdmin() || 
+                    (Auth::user()->isContentUser() && $approval->course->content_user_id == Auth::id());
+        
+        if (!$canReject) {
+            return redirect()->route('user-approvals.index')
+                ->with('error', 'Bạn không có quyền từ chối yêu cầu này.');
+        }
+        
+        // Validate request
         $request->validate([
             'comment' => 'required|string',
         ]);
         
-        // Check if user already has an approval record
-        $approval = $user->userApproval;
-        
-        if ($approval) {
-            // Update existing approval
-            $approval->update([
-                'content_user_id' => Auth::id(),
-                'status' => UserApproval::STATUS_REJECTED,
-                'comment' => $request->comment,
-                'reviewed_at' => now(),
-            ]);
-        } else {
-            // Create new approval
-            $approval = UserApproval::create([
-                'user_id' => $user->id,
-                'content_user_id' => Auth::id(),
-                'status' => UserApproval::STATUS_REJECTED,
-                'comment' => $request->comment,
-                'reviewed_at' => now(),
-            ]);
-        }
+        // Cập nhật trạng thái từ chối
+        $approval->update([
+            'content_user_id' => Auth::id(),
+            'status' => UserApproval::STATUS_REJECTED,
+            'comment' => $request->comment,
+            'reviewed_at' => now(),
+        ]);
         
         return redirect()->route('user-approvals.index')
-            ->with('success', 'Người dùng đã bị từ chối.');
+            ->with('success', 'Đã từ chối yêu cầu đăng ký khóa học.');
     }
 } 

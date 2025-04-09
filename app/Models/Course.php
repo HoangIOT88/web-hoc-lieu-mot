@@ -54,4 +54,12 @@ class Course extends Model
     {
         return $this->hasMany(Exercise::class);
     }
+    
+    /**
+     * Get approval requests for this course
+     */
+    public function userApprovals()
+    {
+        return $this->hasMany(UserApproval::class);
+    }
 }

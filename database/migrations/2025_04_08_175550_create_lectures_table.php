@@ -11,12 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('admin_reports', function (Blueprint $table) {
+        Schema::create('lectures', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('generated_by_admin_id')->constrained('users')->onDelete('cascade');
-            $table->enum('report_type', ['USER_STATS', 'COURSE_STATS', 'ACTIVITY_STATS']);
+            $table->foreignId('course_id')->constrained()->onDelete('cascade');
+            $table->string('title');
+            $table->text('description')->nullable();
             $table->string('file_url')->nullable();
-            $table->timestamp('generated_at');
+            $table->timestamp('uploaded_at')->nullable();
             $table->timestamps();
         });
     }
@@ -26,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('admin_reports');
+        Schema::dropIfExists('lectures');
     }
-}; 
+};

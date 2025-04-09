@@ -89,7 +89,7 @@ class ChatGroupController extends Controller
         // Thêm người tạo nhóm vào nhóm chat - trực tiếp thêm vào database để đảm bảo dữ liệu được lưu
         try {
             DB::table('chat_group_members')->insert([
-                'group_id' => $chatGroup->id,
+                'chat_group_id' => $chatGroup->id,
                 'user_id' => Auth::id(),
                 'joined_at' => now(),
                 'created_at' => now(),
@@ -97,7 +97,7 @@ class ChatGroupController extends Controller
             ]);
             
             \Log::info('Added creator to group', [
-                'group_id' => $chatGroup->id, 
+                'chat_group_id' => $chatGroup->id, 
                 'user_id' => Auth::id()
             ]);
         } catch (\Exception $e) {
@@ -111,7 +111,7 @@ class ChatGroupController extends Controller
             foreach ($request->members as $memberId) {
                 try {
                     DB::table('chat_group_members')->insert([
-                        'group_id' => $chatGroup->id,
+                        'chat_group_id' => $chatGroup->id,
                         'user_id' => $memberId,
                         'joined_at' => now(),
                         'created_at' => now(),
@@ -119,12 +119,12 @@ class ChatGroupController extends Controller
                     ]);
                     
                     \Log::info('Added member to new group', [
-                        'group_id' => $chatGroup->id, 
+                        'chat_group_id' => $chatGroup->id, 
                         'user_id' => $memberId
                     ]);
                 } catch (\Exception $e) {
                     \Log::error('Failed to add member to new group', [
-                        'group_id' => $chatGroup->id,
+                        'chat_group_id' => $chatGroup->id,
                         'user_id' => $memberId,
                         'error' => $e->getMessage()
                     ]);
@@ -144,11 +144,11 @@ class ChatGroupController extends Controller
      */
     public function show(ChatGroup $chatGroup)
     {
-        \Log::info('Showing chat group', ['group_id' => $chatGroup->id]);
+        \Log::info('Showing chat group', ['chat_group_id' => $chatGroup->id]);
         
         // Kiểm tra thành viên hiện tại
         $memberIds = DB::table('chat_group_members')
-            ->where('group_id', $chatGroup->id)
+            ->where('chat_group_id', $chatGroup->id)
             ->pluck('user_id')
             ->toArray();
         
@@ -288,7 +288,7 @@ class ChatGroupController extends Controller
             try {
                 // Trực tiếp chèn vào bảng để đảm bảo không có vấn đề với eloquent relationship
                 DB::table('chat_group_members')->insert([
-                    'group_id' => $chatGroup->id,
+                    'chat_group_id' => $chatGroup->id,
                     'user_id' => $userId,
                     'joined_at' => now(),
                     'created_at' => now(),
@@ -296,12 +296,12 @@ class ChatGroupController extends Controller
                 ]);
                 
                 \Log::info('Successfully added member', [
-                    'group_id' => $chatGroup->id,
+                    'chat_group_id' => $chatGroup->id,
                     'user_id' => $userId
                 ]);
             } catch (\Exception $e) {
                 \Log::error('Failed to add member', [
-                    'group_id' => $chatGroup->id,
+                    'chat_group_id' => $chatGroup->id,
                     'user_id' => $userId,
                     'error' => $e->getMessage()
                 ]);

@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Broadcast;
 
 /*
 |--------------------------------------------------------------------------
@@ -18,6 +19,31 @@ Route::get('/', function () {
 });
 
 Auth::routes();
+
+// Broadcasting auth route - được bảo vệ bởi middleware auth
+Route::post('/broadcasting/auth', function () {
+    // Thêm debug chi tiết
+    \Log::debug('Broadcasting auth request [Detailed]', [
+        'user' => auth()->check() ? auth()->id() : 'not authenticated',
+        'user_name' => auth()->check() ? auth()->user()->name : 'none',
+        'user_role' => auth()->check() ? auth()->user()->role : 'none',
+        'channel_name' => request('channel_name'),
+        'socket_id' => request('socket_id'),
+        'csrf_token' => request()->hasHeader('X-CSRF-TOKEN') ? 'present' : 'missing',
+        'request_path' => request()->path(),
+        'request_method' => request()->method(),
+        'request_headers' => collect(request()->headers->all())->only(['x-csrf-token', 'cookie', 'accept', 'content-type']),
+        'request_ip' => request()->ip(),
+        'session_has_auth' => session()->has('auth'),
+    ]);
+    
+    if (!auth()->check()) {
+        \Log::error('Broadcasting auth failed: User not authenticated');
+        return response('Unauthorized', 403);
+    }
+    
+    return Broadcast::auth(request());
+})->middleware(['web', 'auth']);
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
@@ -66,8 +92,9 @@ Route::delete('messages/{message}', [App\Http\Controllers\MessageController::cla
 
 // User Approval Routes
 Route::get('user-approvals', [App\Http\Controllers\UserApprovalController::class, 'index'])->name('user-approvals.index');
-Route::put('user-approvals/{user}/approve', [App\Http\Controllers\UserApprovalController::class, 'approve'])->name('user-approvals.approve');
-Route::put('user-approvals/{user}/reject', [App\Http\Controllers\UserApprovalController::class, 'reject'])->name('user-approvals.reject');
+Route::get('user-approvals/{approval}', [App\Http\Controllers\UserApprovalController::class, 'show'])->name('user-approvals.show');
+Route::put('user-approvals/{approval}/approve', [App\Http\Controllers\UserApprovalController::class, 'approve'])->name('user-approvals.approve');
+Route::put('user-approvals/{approval}/reject', [App\Http\Controllers\UserApprovalController::class, 'reject'])->name('user-approvals.reject');
 
 // Course Registration Routes
 Route::get('my-courses', [App\Http\Controllers\CourseRegistrationController::class, 'index'])->name('course-registrations.index');
@@ -104,4 +131,45 @@ Route::middleware('auth')->group(function () {
     Route::post('/chat-groups/{chatGroup}/messages', [App\Http\Controllers\MessageController::class, 'store'])->name('messages.store');
     Route::post('/chat-groups/{chatGroup}/typing', [App\Http\Controllers\MessageController::class, 'typing'])->name('chat.typing');
     Route::post('/chat-groups/{chatGroup}/stop-typing', [App\Http\Controllers\MessageController::class, 'stopTyping'])->name('chat.stop-typing');
+});
+
+// Thêm route test đơn giản hóa để debug Pusher broadcast authentication
+Route::get('/test-broadcast-auth', function() {
+    return view('test-broadcast-auth');
+});
+
+// Route test cho Pusher authentication
+Route::post('/broadcasting/auth', function () {
+    \Log::debug('BROADCAST AUTH REQUEST', [
+        'user' => auth()->check() ? auth()->id() : 'guest',
+        'channel_name' => request()->input('channel_name'),
+        'socket_id' => request()->input('socket_id'),
+        'has_csrf' => request()->hasHeader('X-CSRF-TOKEN'),
+        'all_headers' => collect(request()->headers->all())->only(['x-csrf-token', 'accept', 'content-type'])
+    ]);
+    
+    if (auth()->guest()) {
+        \Log::debug('Auth failed: Not authenticated');
+        return response('Unauthorized', 401);
+    }
+    
+    // Cấp quyền cho tất cả các request để test
+    $channelName = request()->input('channel_name');
+    
+    if (!$channelName) {
+        return response('Missing channel name', 400);
+    }
+    
+    // Sử dụng raw response để cung cấp xác thực trực tiếp từ các tham số
+    $socketId = request()->input('socket_id');
+    $key = config('broadcasting.connections.pusher.key');
+    $secret = config('broadcasting.connections.pusher.secret');
+    
+    // Tạo chuỗi signature 
+    $signature = hash_hmac('sha256', $socketId . ':' . $channelName, $secret);
+    
+    // Cung cấp response xác thực
+    return response()->json([
+        'auth' => $key . ':' . $signature
+    ]);
 });

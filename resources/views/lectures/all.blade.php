@@ -7,6 +7,26 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span>{{ __('Tất cả bài giảng') }}</span>
+                    <div>
+                        @if(Auth::user()->isContentUser() || Auth::user()->isAdmin())
+                            <div class="dropdown">
+                                <button class="btn btn-success btn-sm dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                                    {{ __('Thêm bài giảng mới') }}
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                    @if(Auth::user()->isAdmin())
+                                        @foreach(App\Models\Course::all() as $course)
+                                            <li><a class="dropdown-item" href="{{ route('courses.lectures.create', $course) }}">{{ $course->name }}</a></li>
+                                        @endforeach
+                                    @else
+                                        @foreach(App\Models\Course::where('content_user_id', Auth::id())->get() as $course)
+                                            <li><a class="dropdown-item" href="{{ route('courses.lectures.create', $course) }}">{{ $course->name }}</a></li>
+                                        @endforeach
+                                    @endif
+                                </ul>
+                            </div>
+                        @endif
+                    </div>
                 </div>
 
                 <div class="card-body">

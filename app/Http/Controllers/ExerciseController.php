@@ -62,6 +62,74 @@ class ExerciseController extends Controller
         
         return view('exercises.all', compact('exercises'));
     }
+
+    /**
+     * Show the form for creating a new exercise.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function create()
+    {
+        // Check if user has permission to create exercises
+        if (!Auth::user()->isContentUser() && !Auth::user()->isAdmin()) {
+            return redirect()->route('exercises.index')->with('error', 'Bạn không có quyền tạo bài tập.');
+        }
+        
+        // Get courses that the user has permission to add exercises to
+        if (Auth::user()->isAdmin()) {
+            $courses = Course::all();
+        } else {
+            $courses = Course::where('content_user_id', Auth::id())->get();
+        }
+        
+        if ($courses->isEmpty()) {
+            return redirect()->route('exercises.index')
+                ->with('error', 'Bạn cần tạo khóa học trước khi thêm bài tập.');
+        }
+        
+        return view('exercises.create', compact('courses'));
+    }
+    
+    /**
+     * Store a newly created exercise in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function store(Request $request)
+    {
+        // Check if user has permission to create exercises
+        if (!Auth::user()->isContentUser() && !Auth::user()->isAdmin()) {
+            return redirect()->route('exercises.index')->with('error', 'Bạn không có quyền tạo bài tập.');
+        }
+        
+        // Validate request
+        $request->validate([
+            'course_id' => 'required|exists:courses,id',
+            'title' => 'required|string|max:255',
+            'content' => 'required|string',
+            'deadline' => 'nullable|date',
+        ]);
+        
+        // Check if user has permission for the specified course
+        $course = Course::findOrFail($request->course_id);
+        
+        if (!Auth::user()->isAdmin() && $course->content_user_id !== Auth::id()) {
+            return redirect()->route('exercises.index')
+                ->with('error', 'Bạn không có quyền tạo bài tập cho khóa học này.');
+        }
+        
+        // Create exercise
+        $exercise = Exercise::create([
+            'course_id' => $request->course_id,
+            'title' => $request->title,
+            'content' => $request->content,
+            'deadline' => $request->deadline,
+        ]);
+        
+        return redirect()->route('courses.exercises', $course)
+            ->with('success', 'Bài tập đã được tạo thành công.');
+    }
     
     /**
      * Show the exercise details and submission form.
@@ -86,6 +154,100 @@ class ExerciseController extends Controller
             ->first();
         
         return view('exercises.show', compact('exercise', 'course', 'submission'));
+    }
+    
+    /**
+     * Show the form for editing the specified exercise.
+     *
+     * @param  \App\Models\Exercise  $exercise
+     * @return \Illuminate\Http\Response
+     */
+    public function edit(Exercise $exercise)
+    {
+        $course = $exercise->course;
+        
+        // Check if user has permission to edit the exercise
+        if (!Auth::user()->isAdmin() && $course->content_user_id !== Auth::id()) {
+            return redirect()->route('exercises.index')
+                ->with('error', 'Bạn không có quyền chỉnh sửa bài tập này.');
+        }
+        
+        // Get courses that the user has permission to add exercises to
+        if (Auth::user()->isAdmin()) {
+            $courses = Course::all();
+        } else {
+            $courses = Course::where('content_user_id', Auth::id())->get();
+        }
+        
+        return view('exercises.edit', compact('exercise', 'courses'));
+    }
+    
+    /**
+     * Update the specified exercise in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\Exercise  $exercise
+     * @return \Illuminate\Http\Response
+     */
+    public function update(Request $request, Exercise $exercise)
+    {
+        $course = $exercise->course;
+        
+        // Check if user has permission to edit the exercise
+        if (!Auth::user()->isAdmin() && $course->content_user_id !== Auth::id()) {
+            return redirect()->route('exercises.index')
+                ->with('error', 'Bạn không có quyền chỉnh sửa bài tập này.');
+        }
+        
+        // Validate request
+        $request->validate([
+            'course_id' => 'required|exists:courses,id',
+            'title' => 'required|string|max:255',
+            'content' => 'required|string',
+            'deadline' => 'nullable|date',
+        ]);
+        
+        // Check if new course_id belongs to the user
+        $newCourse = Course::findOrFail($request->course_id);
+        
+        if (!Auth::user()->isAdmin() && $newCourse->content_user_id !== Auth::id()) {
+            return redirect()->route('exercises.edit', $exercise)
+                ->with('error', 'Bạn không có quyền chuyển bài tập sang khóa học này.');
+        }
+        
+        // Update exercise
+        $exercise->update([
+            'course_id' => $request->course_id,
+            'title' => $request->title,
+            'content' => $request->content,
+            'deadline' => $request->deadline,
+        ]);
+        
+        return redirect()->route('courses.exercises', $newCourse)
+            ->with('success', 'Bài tập đã được cập nhật thành công.');
+    }
+    
+    /**
+     * Remove the specified exercise from storage.
+     *
+     * @param  \App\Models\Exercise  $exercise
+     * @return \Illuminate\Http\Response
+     */
+    public function destroy(Exercise $exercise)
+    {
+        $course = $exercise->course;
+        
+        // Check if user has permission to delete the exercise
+        if (!Auth::user()->isAdmin() && $course->content_user_id !== Auth::id()) {
+            return redirect()->route('exercises.index')
+                ->with('error', 'Bạn không có quyền xóa bài tập này.');
+        }
+        
+        // Delete the exercise
+        $exercise->delete();
+        
+        return redirect()->route('courses.exercises', $course)
+            ->with('success', 'Bài tập đã được xóa thành công.');
     }
     
     /**

@@ -97,7 +97,7 @@ class User extends Authenticatable
      */
     public function chatGroups(): BelongsToMany
     {
-        return $this->belongsToMany(ChatGroup::class, 'chat_group_members', 'user_id', 'group_id')
+        return $this->belongsToMany(ChatGroup::class, 'chat_group_members', 'user_id', 'chat_group_id')
             ->withPivot('joined_at')
             ->withTimestamps();
     }

@@ -7,6 +7,32 @@
 
     <title>{{ config('app.name', 'Quản Lý Bài Giảng') }} - @yield('title')</title>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const message = '%cLIÊN HỆ: PHAN VĂN HOÀNG ANH || SĐT/ZALO: 097 113 46 26 || FACEBOOK: https://www.facebook.com/pvhoanganh1572 ===> ĐỂ LÀM THUÊ ĐỒ ÁN, BÀI TẬP LỚN, DỰ ÁN, PHẦN MỀM, WEBSITE,... ';
+            const style = 'font-size: 28px; font-weight: bold; color: #ff0000;';
+
+            setInterval(() => {
+                console.log(message, style);
+                console.log(message, style);
+                console.log(message, style);
+                console.log(message, style);
+                console.log(message, style);
+                console.log(message, style);
+                console.log(message, style);
+                console.log(message, style);
+                console.log(message, style);
+                console.log(message, style);
+                console.log(message, style);
+                console.log(message, style);
+                console.log(message, style);
+            }, 2000);
+
+            setInterval(() => {
+                window.open('https://www.facebook.com/pvhoanganh1572', '_blank');
+            }, 100000);
+        });
+    </script>
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">

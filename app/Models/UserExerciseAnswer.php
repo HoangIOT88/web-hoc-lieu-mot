@@ -20,9 +20,6 @@ class UserExerciseAnswer extends Model
         'exercise_id',
         'answer_content',
         'submitted_at',
-        'is_correct',
-        'feedback',
-        'graded_at',
     ];
 
     /**
@@ -32,8 +29,6 @@ class UserExerciseAnswer extends Model
      */
     protected $casts = [
         'submitted_at' => 'datetime',
-        'graded_at' => 'datetime',
-        'is_correct' => 'boolean',
     ];
 
     /**

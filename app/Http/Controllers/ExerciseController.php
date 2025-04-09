@@ -283,9 +283,6 @@ class ExerciseController extends Controller
             $existingSubmission->update([
                 'answer_content' => $request->answer_content,
                 'submitted_at' => now(),
-                'is_correct' => null,
-                'feedback' => null,
-                'graded_at' => null,
             ]);
             
             return redirect()->route('exercises.show', $exercise)->with('success', 'Your submission has been updated.');

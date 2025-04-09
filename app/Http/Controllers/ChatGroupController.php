@@ -163,8 +163,11 @@ class ChatGroupController extends Controller
                 ->with('error', 'You are not a member of this chat group.');
         }
         
-        // Load messages with sender info
-        $messages = $chatGroup->messages()->with('sender')->latest()->paginate(50);
+        // Load messages with sender info - sắp xếp theo thời gian gửi (cũ nhất lên trên)
+        $messages = $chatGroup->messages()
+            ->with('sender')
+            ->orderBy('sent_at', 'asc')
+            ->get();
         
         // Get all members of the group - eager load with users table
         $members = \App\Models\User::whereIn('id', $memberIds)->get();

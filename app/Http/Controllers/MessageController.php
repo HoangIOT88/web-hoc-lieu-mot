@@ -123,11 +123,9 @@ class MessageController extends Controller
         
         $messages = $chatGroup->messages()
             ->with('sender:id,name')
-            ->latest('sent_at')
+            ->orderBy('sent_at', 'asc')
             ->limit(50)
-            ->get()
-            ->reverse()
-            ->values();
+            ->get();
             
         return response()->json($messages);
     }
@@ -159,7 +157,7 @@ class MessageController extends Controller
         $messages = $chatGroup->messages()
             ->with('sender:id,name')
             ->where('id', '>', $request->last_id)
-            ->orderBy('id')
+            ->orderBy('sent_at', 'asc')
             ->get();
             
         return response()->json($messages);
